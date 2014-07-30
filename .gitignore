@@ -1,2 +1,7 @@
 bin/
 obj/
+/packages/
+/_NCrunch_MachineLearning/
+/MachineLearning.ncrunchsolution.user
+/MachineLearning.v2.ncrunchproject
+/MachineLearning.v2.ncrunchsolution

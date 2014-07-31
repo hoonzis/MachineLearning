@@ -34,3 +34,22 @@ let ``test nn hidden test 2``() =
     result |> should haveLength 2
     result.[0] |> should equal 8
     result.[1] |> should equal 3
+
+
+[<Test>]
+let ``test nn hidden test 3``() =
+    let weights = [|
+                    [|3.0;0.0|]
+                    [|1.0;1.0|]
+                    [|0.0;1.0|]
+                  |]
+    let input = [|2.0;2.0;1.0|]
+
+    let actFunc x = x
+
+    let twoDimensionalWeight = Array2D.init 3 2 (fun i j -> weights.[i].[j]) 
+
+    let result = pass input twoDimensionalWeight actFunc
+    result |> should haveLength 2
+    result.[0] |> should equal 8
+    result.[1] |> should equal 3

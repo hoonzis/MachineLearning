@@ -61,6 +61,7 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <Compile Include="NeuralNetwork.fs" />
     <Compile Include="NeuralNetworks.fs" />
     <Compile Include="NeuralNetworksTests.fs" />
     <Compile Include="Program.fs" />

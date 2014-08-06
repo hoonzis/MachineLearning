@@ -41,8 +41,7 @@ let updateWeights (layer:float[]) (delta:float[]) (weights:float[,]) learningRat
     weights
 
 
-
-let sigmoid x = x*x
+let sigmoid value = 1.0/(1.0 + exp(-value));
 
 let XOR_complete_pass input network = 
     let hidden = pass input network.inputToHidden sigmoid
@@ -68,14 +67,17 @@ let train network rate input target =
         output = Array.empty
     }
 
-    
-let inline xor a b = (a || b) && not (a && b)
+let boolToFloat = function
+    | true -> 1.0
+    | false -> 0.0
 
-let runTraining iterations rate =
-    let xorFloats input:float[] =
+let xorFloats (input:float[]) =
         let a:bool = Convert.ToBoolean(input.[0])
         let b:bool = Convert.ToBoolean(input.[1])
-        a xor b
+        let result = (a || b) && not (a && b)
+        [|boolToFloat result|]
+
+let runTraining iterations rate =
 
     let rec reduce trainings network = 
         match trainings with
@@ -85,12 +87,13 @@ let runTraining iterations rate =
             | [] -> network
 
     let pairs = [
-                    (0,0)
-                    (0,1)
-                    (1,0)
-                    (1,1)
+                    (0.0,0.0)
+                    (0.0,1.0)
+                    (1.0,0.0)
+                    (1.1,1.1)
                 ] |> Array.ofList
-    let allTrainings = [| for i in 0 .. iterations -> pairs.[i%4]|]
+
+    let allTrainings = [for i in 0 .. iterations -> pairs.[i%4]]
 
     let weights = [|
         [|3.0;0.0|]
@@ -107,5 +110,5 @@ let runTraining iterations rate =
         output = Array.empty
     }
 
-    let result = reduce allTrainings startNetwork xorFloats
+    let result = reduce allTrainings startNetwork
     result

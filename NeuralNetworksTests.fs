@@ -53,3 +53,8 @@ let ``test nn hidden test 3``() =
     result |> should haveLength 2
     result.[0] |> should equal 8
     result.[1] |> should equal 3
+
+[<Test>]
+let ``Test xor``() =
+    let network = runTraining 200 1.2
+    network.output |> should equalWithin 1 0.2

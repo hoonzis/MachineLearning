@@ -69,3 +69,27 @@ let ``Test xor``() =
     
     let output = completepass [|0.0;0.0|] outNetwork
     output.output.[0] |> should (equalWithin 0.2) 0.0
+
+[<Test>]
+let ``Test delta calc``() =
+    let output = [|1.0;0.5;1.0|]
+    let target = [|0.0;0.1;1.0|]
+    let delta = deltaOutput output target
+    delta |> should equal 10
+
+[<Test>]
+let ``Test pass delta``() =
+    let layer = [|1.0;0.5|]
+    let delta = [|1.0;0.2|]
+    let weights1 = [|
+                    [|3.0;0.0|]
+                    [|1.0;1.0|]
+                |]
+    let weights = Array2D.init 2 2 (fun i j -> weights1.[i].[j])
+    let passedDelta = passDelta layer delta weights
+    //e1 -> 1*3+0*0.2 ->3
+    //e2 -> 1*1 + 1*0.2-> 1.2
+    //l1 -> 1 * (1-1)*3
+    //l2 -> 0.5 * (1-0.5)*1.2 -> 0.3
+
+    passDelta |> should equal [|1.0;0.3|]

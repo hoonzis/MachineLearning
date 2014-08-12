@@ -13,7 +13,7 @@ let applyLayer (input:array<int>) (hiddenWeights:(int*int)list list) activation 
     output
 
 let deltaOutput (output:array<float>) (target:array<float>) =
-    (Array.zip output target) |> Array.map (fun (o,t) -> o * (1.0 - o) * t - o)
+    (Array.zip output target) |> Array.map (fun (o,t) -> o * (1.0 - o) * (t - o))
 
 let pass (input:float[]) (weights:float[,]) activation =
     let length = weights |> Array2D.length2

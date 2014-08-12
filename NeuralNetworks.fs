@@ -1,5 +1,6 @@
 ﻿module MachineLearning.NeuralNetworks
 open System
+open MachineLearning.NeuralNetwork
 
 let applyLayer (input:array<int>) (hiddenWeights:(int*int)list list) activation =
     let length = hiddenWeights |> List.length
@@ -23,10 +24,10 @@ let pass (input:float[]) (weights:float[,]) activation =
     output
 
 let passDelta (outputs:float[]) (delta:float[]) (weights:float[,]) =
-    let length = weights |> Array2D.length2
+    let length = weights |> Array2D.length1
     let output = Array.zeroCreate length
     for i in 0 .. length-1 do
-        let error = (Array.zip weights.[*,i] delta) |> Array.sumBy (fun (v,w) -> v * w)
+        let error = (Array.zip weights.[i,*] delta) |> Array.sumBy (fun (v,w) -> v * w)
         output.[i] <-outputs.[i] * (1.0 - outputs.[i]) * error
     output
 
@@ -35,7 +36,7 @@ let passDelta (outputs:float[]) (delta:float[]) (weights:float[,]) =
 let updateWeights (layer:float[]) (delta:float[]) (weights:float[,]) learningRate =
     let length = weights |> Array2D.length2
     for i in 0 .. length-1 do
-        weights.[*,i] |> Array.iteri (fun j x -> 
+        weights.[i,*] |> Array.iteri (fun j x -> 
             weights.[j,i] <- learningRate * delta.[i] * layer.[j]
         )
     weights
@@ -43,7 +44,7 @@ let updateWeights (layer:float[]) (delta:float[]) (weights:float[,]) learningRat
 
 let sigmoid value = 1.0/(1.0 + exp(-value));
 
-let XOR_complete_pass input network = 
+let completepass input network = 
     let hidden = pass input network.inputToHidden sigmoid
     let output = pass hidden network.hiddenToOutput sigmoid
     let newNetwork = {
@@ -55,9 +56,9 @@ let XOR_complete_pass input network =
     newNetwork
 
 let train network rate input target =
-    let n1 = XOR_complete_pass input network
+    let n1 = completepass input network
     let delta = deltaOutput n1.output target
-    let deltaHidden = passDelta n1.output delta n1.hiddenToOutput
+    let deltaHidden = passDelta n1.hidden delta n1.hiddenToOutput
     let updatedHiddenToOut = updateWeights n1.output delta n1.hiddenToOutput rate
     let updatedInToHidden = updateWeights n1.hidden deltaHidden n1.inputToHidden rate
     {
@@ -77,8 +78,19 @@ let xorFloats (input:float[]) =
         let result = (a || b) && not (a && b)
         [|boolToFloat result|]
 
-let runTraining iterations rate =
-
+let createRandomNetwork inputNodes hiddenNodes outputNodes = 
+    let rnd = System.Random()
+    let inputToHidden = Array2D.init inputNodes hiddenNodes (fun _ _ -> rnd.NextDouble())
+    let hiddenToOutput = Array2D.init hiddenNodes outputNodes (fun _ _ -> rnd.NextDouble())
+    let network = {
+        inputToHidden = inputToHidden
+        hiddenToOutput = hiddenToOutput
+        hidden = Array.empty
+        output = Array.empty
+    }
+    network
+    
+let runTraining network iterations rate =
     let rec reduce trainings network = 
         match trainings with
             | (a,b) :: tail -> 
@@ -95,20 +107,5 @@ let runTraining iterations rate =
 
     let allTrainings = [for i in 0 .. iterations -> pairs.[i%4]]
 
-    let weights = [|
-        [|3.0;0.0|]
-        [|1.0;1.0|]
-        [|0.0;1.0|]
-    |]
-    
-    let exampleWeights = Array2D.init 3 2 (fun i j -> weights.[i].[j]) 
-
-    let startNetwork = {
-        inputToHidden = exampleWeights
-        hiddenToOutput = exampleWeights
-        hidden = Array.empty
-        output = Array.empty
-    }
-
-    let result = reduce allTrainings startNetwork
+    let result = reduce allTrainings network
     result

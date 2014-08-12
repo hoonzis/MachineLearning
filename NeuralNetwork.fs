@@ -1,4 +1,4 @@
-﻿module MachineLearning
+﻿module MachineLearning.NeuralNetwork
 
 type NeuralNetwork = {
     inputToHidden : float [,];

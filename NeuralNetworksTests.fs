@@ -55,6 +55,17 @@ let ``test nn hidden test 3``() =
     result.[1] |> should equal 3
 
 [<Test>]
+let ``Test xor floats``() =
+    xorFloats [|0.0;0.0|] |> should equal [|0.0|]
+    xorFloats [|0.1;0.0|] |> should equal [|1.0|]
+    xorFloats [|0.0;1.0|] |> should equal [|1.0|]
+    xorFloats [|1.0;1.0|] |> should equal [|0.0|]
+
+[<Test>]
 let ``Test xor``() =
-    let network = runTraining 200 1.2
-    network.output |> should equalWithin 1 0.2
+    let inNetwork = createRandomNetwork 2 2 1
+    let outNetwork = runTraining inNetwork 10000 0.3
+    outNetwork |> should not' (be Null)
+    
+    let output = completepass [|0.0;0.0|] outNetwork
+    output.output.[0] |> should (equalWithin 0.2) 0.0

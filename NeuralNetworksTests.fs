@@ -74,8 +74,10 @@ let ``Test xor``() =
 let ``Test delta calc``() =
     let output = [|1.0;0.5;1.0|]
     let target = [|0.0;0.1;1.0|]
+    // 1*(1-1)*(0-1) -> 0
+    //0.5*(1-0.5)*(0.1 - 0.5) ->0.25*-0.4->-0.1
     let delta = deltaOutput output target
-    delta |> should equal 10
+    delta |> should equal [|0.0;-0.1;0.0|]
 
 [<Test>]
 let ``Test pass delta``() =
@@ -92,4 +94,4 @@ let ``Test pass delta``() =
     //l1 -> 1 * (1-1)*3
     //l2 -> 0.5 * (1-0.5)*1.2 -> 0.3
 
-    passDelta |> should equal [|1.0;0.3|]
+    passedDelta |> should equal [|1.0;0.3|]

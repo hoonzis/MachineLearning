@@ -94,4 +94,17 @@ let ``Test pass delta``() =
     //l1 -> 1 * (1-1)*3
     //l2 -> 0.5 * (1-0.5)*1.2 -> 0.3
 
-    passedDelta |> should equal [|1.0;0.3|]
+    passedDelta |> should equal [|0.0;0.3|]
+
+[<Test>]
+let ``test update weights``() =
+    let layer = [|1.0;0.5|]
+    let delta = [|1.0|]
+    let weights1 = [|
+                    [|3.0|]
+                    [|1.0|]
+                |]
+    let weights = Array2D.init 2 2 (fun i j -> weights1.[i].[j])
+    let newWeights = updateWeights layer delta weights 1.0
+    newWeights |> should equal [|4|]
+            

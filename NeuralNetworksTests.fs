@@ -64,11 +64,21 @@ let ``Test xor floats``() =
 [<Test>]
 let ``Test xor``() =
     let inNetwork = createRandomNetwork 2 2 1
-    let outNetwork = runTraining inNetwork 10000 0.3
+    let outNetwork = runTraining inNetwork 5000 1.1
     outNetwork |> should not' (be Null)
     
     let output = completepass [|0.0;0.0|] outNetwork
-    output.output.[0] |> should (equalWithin 0.2) 0.0
+    output.output.[0] |> should (equalWithin 0.15) 0.0
+    
+    let output1 = completepass [|1.0;1.0|] outNetwork
+    output1.output.[0] |> should (equalWithin 0.15) 0.0
+    
+    let output2 = completepass [|1.0;0.0|] outNetwork
+    output2.output.[0] |> should (equalWithin 0.15) 1.0
+    
+    let output3 = completepass [|0.0;1.0|] outNetwork
+    output3.output.[0] |> should (equalWithin 0.15) 1.0
+    
 
 [<Test>]
 let ``Test delta calc``() =
@@ -83,11 +93,10 @@ let ``Test delta calc``() =
 let ``Test pass delta``() =
     let layer = [|1.0;0.5|]
     let delta = [|1.0;0.2|]
-    let weights1 = [|
+    let weights = array2D [|
                     [|3.0;0.0|]
                     [|1.0;1.0|]
                 |]
-    let weights = Array2D.init 2 2 (fun i j -> weights1.[i].[j])
     let passedDelta = passDelta layer delta weights
     //e1 -> 1*3+0*0.2 ->3
     //e2 -> 1*1 + 1*0.2-> 1.2
@@ -100,11 +109,13 @@ let ``Test pass delta``() =
 let ``test update weights``() =
     let layer = [|1.0;0.5|]
     let delta = [|1.0|]
-    let weights1 = [|
+    let weights = array2D [|
                     [|3.0|]
                     [|1.0|]
                 |]
-    let weights = Array2D.init 2 2 (fun i j -> weights1.[i].[j])
     let newWeights = updateWeights layer delta weights 1.0
-    newWeights |> should equal [|4|]
+    newWeights |> should equal (array2D [|
+                                    [|4.0|]
+                                    [|1.5|]
+                                |])
             

@@ -2,26 +2,23 @@
 open System
 open MachineLearning.NeuralNetwork
 
-let applyLayer (input:array<int>) (hiddenWeights:(int*int)list list) activation =
-    let length = hiddenWeights |> List.length
-    let output = Array.zeroCreate length
-    hiddenWeights |> List.iteri (fun i weights -> 
-        let sum = weights |> List.sumBy (fun (inputEl,weight) -> input.[inputEl] * weight)
-        output.[i] <- activation sum
-        ()
-    )
-    output
+let trainingPairs =  array2D [|
+                        [|0.0;0.0|]
+                        [|0.0;1.0|]
+                        [|1.0;0.0|]
+                        [|1.0;1.0|]
+                    |]
 
 let deltaOutput (output:array<float>) (target:array<float>) =
     (Array.zip output target) |> Array.map (fun (o,t) -> o * (1.0 - o) * (t - o))
 
 let pass (input:float[]) (weights:float[,]) activation =
     let length = weights |> Array2D.length2
-    let output = Array.zeroCreate length
-    for i in 0 .. length-1 do
-        let sum = (Array.zip weights.[*,i] input) |> Array.sumBy (fun (v,w) -> v * w)
-        output.[i] <- activation sum
-    output
+    seq {
+        for i in 0 .. length-1 do
+            let sum = (Array.zip weights.[*,i] input) |> Array.sumBy (fun (v,w) -> v * w)
+            yield activation sum
+    } |> Array.ofSeq
 
 let passDelta (outputs:float[]) (delta:float[]) (weights:float[,]) =
     let length = weights |> Array2D.length1
@@ -71,20 +68,17 @@ let train network rate input target =
         output = Array.empty
     }
 
-let boolToFloat = function
-    | true -> 1.0
-    | false -> 0.0
-
-let xorFloats (input:float[]) =
-        let a:bool = Convert.ToBoolean(input.[0])
-        let b:bool = Convert.ToBoolean(input.[1])
-        let result = (a || b) && not (a && b)
-        [|boolToFloat result|]
+let xorFloats = function
+        | [|0.0;0.0|] -> [|0.0|]
+        | [|1.0;0.0|] -> [|1.0|]
+        | [|0.0;1.0|] -> [|1.0|]
+        | [|1.0;1.0|] -> [|0.0|]
+        | _ -> failwith "This XOR is only for 2 inputs" 
 
 let createRandomNetwork inputNodes hiddenNodes outputNodes = 
     let rnd = System.Random()
-    let inputToHidden = Array2D.init inputNodes hiddenNodes (fun _ _ -> rnd.NextDouble())
-    let hiddenToOutput = Array2D.init hiddenNodes outputNodes (fun _ _ -> rnd.NextDouble())
+    let inputToHidden = Array2D.init inputNodes hiddenNodes (fun _ _ -> rnd.NextDouble() + 0.3)
+    let hiddenToOutput = Array2D.init hiddenNodes outputNodes (fun _ _ -> rnd.NextDouble() + 0.3)
     let network = {
         input =  Array.empty
         inputToHidden = inputToHidden
@@ -97,19 +91,13 @@ let createRandomNetwork inputNodes hiddenNodes outputNodes =
 let runTraining network iterations rate =
     let rec reduce trainings network = 
         match trainings with
-            | (a,b) :: tail -> 
-                let n1 = train network rate [|a;b|] (xorFloats [|a;b|])
+            | input :: tail -> 
+                let n1 = train network rate input (xorFloats input)
                 reduce tail n1
             | [] -> network
 
-    let pairs = [
-                    (0.0,0.0)
-                    (0.0,1.0)
-                    (1.0,0.0)
-                    (1.1,1.1)
-                ] |> Array.ofList
 
-    let allTrainings = [for i in 0 .. iterations -> pairs.[i%4]]
+    let allTrainings = [for i in 0 .. iterations -> trainingPairs.[i%4,*]]
 
     let result = reduce allTrainings network
     result

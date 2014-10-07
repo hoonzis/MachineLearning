@@ -34,7 +34,7 @@ let ``Test xor floats``() =
 [<Test>]
 let ``Test xor``() =
     let inNetwork = createRandomNetwork 2 2 1
-    let outNetwork = runTraining inNetwork 200000 0.3
+    let outNetwork = runTraining inNetwork 210000 0.5
     outNetwork |> should not' (be Null)
     
     let output = completepass [|0.0;0.0|] outNetwork

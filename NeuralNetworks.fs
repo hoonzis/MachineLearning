@@ -9,9 +9,6 @@ let trainingPairs =  array2D [|
                         [|1.0;1.0|]
                     |]
 
-let deltaOutput (output:array<float>) (target:array<float>) =
-    (Array.zip output target) |> Array.map (fun (o,t) -> o * (1.0 - o) * (t - o))
-
 let pass (input:float[]) (weights:float[,]) activation =
     let length = weights |> Array2D.length2
     seq {
@@ -20,13 +17,16 @@ let pass (input:float[]) (weights:float[,]) activation =
             yield activation sum
     } |> Array.ofSeq
 
+let deltaOutput (output:array<float>) (target:array<float>) =
+    (Array.zip output target) |> Array.map (fun (o,t) -> o * (1.0 - o) * (t - o))
+
 let passDelta (outputs:float[]) (delta:float[]) (weights:float[,]) =
     let length = weights |> Array2D.length1
-    let output = Array.zeroCreate length
-    for i in 0 .. length-1 do
-        let error = (Array.zip weights.[i,*] delta) |> Array.sumBy (fun (v,w) -> v * w)
-        output.[i] <-outputs.[i] * (1.0 - outputs.[i]) * error
-    output
+    seq {
+        for i in 0 .. length-1 do
+            let error = (Array.zip weights.[i,*] delta) |> Array.sumBy (fun (v,w) -> v * w)
+            yield outputs.[i] * (1.0 - outputs.[i]) * error
+    } |> Array.ofSeq
 
 
 
@@ -92,8 +92,8 @@ let runTraining network iterations rate =
     let rec reduce trainings network = 
         match trainings with
             | input :: tail -> 
-                let n1 = train network rate input (xorFloats input)
-                reduce tail n1
+                let nout = train network rate input (xorFloats input)
+                reduce tail nout
             | [] -> network
 
 

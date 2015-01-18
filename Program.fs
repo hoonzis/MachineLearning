@@ -1,6 +1,9 @@
 ﻿module MachineLearning.Program
+
 open System.Windows.Forms
 open MachineLearning.Options
+open MachineLearning.NeuralNetworks
+open System
 
 let linRegressio (x:float array) (y:float array) =
     let length = (float) (Array.length x)
@@ -14,7 +17,33 @@ let linRegressio (x:float array) (y:float array) =
     let a = (covariance - (sumX * sumY)/(float)length)/(sum_x_squared - ((sumX*(float)2)/length))
     let b = (sumY- a* sumX) / length
     (a,b)
+
+let determineParans =
+    let inNetwork = createRandomNetwork 2 2 1
     
+    printfn "%A" inNetwork
+
+    let mutable minDelta = 1000.0
+    let mutable minRate = 0.0
+    let mutable minIterations = 0
+    for i in 1 .. 50 do
+        let iterations = i*1000
+        for r in 1 .. 8 do
+            let mutable totalDelta = 0.0    
+            let rate = (float)r*0.1
+            let network = runTraining inNetwork iterations rate
+            for tIn in 0 .. (trainingPairs |> Array2D.length1)-1 do
+                let input = trainingPairs.[tIn,*]
+                let out = completepass input network 
+                totalDelta <- totalDelta + abs((deltaOutput out.output (xorFloats input)) |> Array.sum)
+            
+            if minDelta > totalDelta then
+                minDelta <- totalDelta
+                minRate <- rate
+                minIterations <- iterations
+        printfn "iterations %i delta: %f" iterations minDelta
+    printfn "best params: %i - %f - %f" minIterations minRate minDelta
+
 [<EntryPoint>]
 let main argv = 
     printfn "%A" argv

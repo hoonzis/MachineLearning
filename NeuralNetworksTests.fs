@@ -5,36 +5,6 @@ open MachineLearning.NeuralNetworks
 open NUnit.Framework
 open FsUnit
 
-[<Test>]
-let ``test nn hidden test 1``() =
-    let weights = [
-                    [(0,1);(1,1)]
-                    [(1,1);(2,1)]
-                  ]
-    let input = [|1;1;1|]
-
-    let actFunc x = x
-
-    let result = applyLayer input weights actFunc
-    result |> should haveLength 2
-    result.[0] |> should equal 2
-    result.[1] |> should equal 2
-
-[<Test>]
-let ``test nn hidden test 2``() =
-    let weights = [
-                    [(0,3);(1,1)]
-                    [(1,1);(2,1)]
-                  ]
-    let input = [|2;2;1|]
-
-    let actFunc x = x
-
-    let result = applyLayer input weights actFunc
-    result |> should haveLength 2
-    result.[0] |> should equal 8
-    result.[1] |> should equal 3
-
 
 [<Test>]
 let ``test nn hidden test 3``() =
@@ -57,28 +27,27 @@ let ``test nn hidden test 3``() =
 [<Test>]
 let ``Test xor floats``() =
     xorFloats [|0.0;0.0|] |> should equal [|0.0|]
-    xorFloats [|0.1;0.0|] |> should equal [|1.0|]
+    xorFloats [|1.0;0.0|] |> should equal [|1.0|]
     xorFloats [|0.0;1.0|] |> should equal [|1.0|]
     xorFloats [|1.0;1.0|] |> should equal [|0.0|]
 
 [<Test>]
 let ``Test xor``() =
     let inNetwork = createRandomNetwork 2 2 1
-    let outNetwork = runTraining inNetwork 5000 1.1
+    let outNetwork = runTraining inNetwork 210000 0.5
     outNetwork |> should not' (be Null)
     
     let output = completepass [|0.0;0.0|] outNetwork
-    output.output.[0] |> should (equalWithin 0.15) 0.0
-    
-    let output1 = completepass [|1.0;1.0|] outNetwork
-    output1.output.[0] |> should (equalWithin 0.15) 0.0
+    output.output.[0] |> should (equalWithin 0.1) 0.0
     
     let output2 = completepass [|1.0;0.0|] outNetwork
-    output2.output.[0] |> should (equalWithin 0.15) 1.0
+    output2.output.[0] |> should (equalWithin 0.1) 1.0
     
     let output3 = completepass [|0.0;1.0|] outNetwork
-    output3.output.[0] |> should (equalWithin 0.15) 1.0
-    
+    output3.output.[0] |> should (equalWithin 0.1) 1.0
+
+    let output1 = completepass [|1.0;1.0|] outNetwork
+    output1.output.[0] |> should (equalWithin 0.1) 0.0
 
 [<Test>]
 let ``Test delta calc``() =

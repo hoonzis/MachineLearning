@@ -9,20 +9,33 @@ open System.Windows.Forms.DataVisualization.Charting
 
 
 let euroCallValue strike premium buySell ref = 
-    buySell * (max (ref - strike) 0.0) - (buySell* premium)
+    buySell * ((max (ref - strike) 0.0) - premium)
+
+let euroPutValue strike premium buySell ref =
+    buySell * (max (strike - ref) 0.0 - premium)
 
 let optionPayOff option = 
     [for p in 0.0 .. 10.0 .. 80.0 -> p, option p]
 
-let buyingCall = optionPayOff (euroCallValue 30.0 5.0 1.0)
+let getOptionData option strike premium buySell =
+    [for p in 0.50*strike .. strike .. 1.5*strike -> p, option strike premium buySell p]
 
-let sellingCall = optionPayOff (euroCallValue 30.0 5.0 -1.0)
+let buyingCall = getOptionData euroCallValue 30.0 5.0 1.0
+
+let sellingCall = getOptionData euroCallValue 30.0 5.0 -1.0
     
+let buyingPut = getOptionData euroPutValue 30.0 5.0 1.0
+
+let sellingPut = getOptionData euroPutValue 30.0 5.0 -1.0
+
 let drawPayOff = 
     let chart = Chart.Combine [         
-            Chart.Line (buyingCall, Name = "buying call")
-            Chart.Line (sellingCall, Name = "selling call")
-        ]
+                    Chart.Line (buyingCall, Name = "buying call")
+                    Chart.Line (sellingCall, Name = "selling call")
+                    Chart.Line (buyingPut, Name = "buying put")
+                    Chart.Line(sellingPut, Name = "selling put")
+                ]
+
     let withLegend = chart |> Chart.WithLegend(true)
     let area = new ChartArea("Main")
 

@@ -47,5 +47,5 @@ let determineParans =
 [<EntryPoint>]
 let main argv = 
     printfn "%A" argv
-    Application.Run(drawPayOff)
+    //Application.Run(drawPayOff)
     0

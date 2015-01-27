@@ -12,13 +12,13 @@ let euroCallValue strike premium buySell ref =
     buySell * ((max (ref - strike) 0.0) - premium)
 
 let euroPutValue strike premium buySell ref =
-    buySell * (max (strike - ref) 0.0 - premium)
+    buySell * ((max (strike - ref) 0.0) - premium)
 
 let optionPayOff option = 
     [for p in 0.0 .. 10.0 .. 80.0 -> p, option p]
 
 let getOptionData option strike premium buySell =
-    [for p in 0.50*strike .. strike .. 1.5*strike -> p, option strike premium buySell p]
+    [for p in 0.5*strike .. 2.0*strike -> p, (option strike premium buySell p)]
 
 let buyingCall = getOptionData euroCallValue 30.0 5.0 1.0
 
@@ -29,6 +29,8 @@ let buyingPut = getOptionData euroPutValue 30.0 5.0 1.0
 let sellingPut = getOptionData euroPutValue 30.0 5.0 -1.0
 
 let drawPayOff = 
+
+    printfn "%A" sellingCall
     let chart = Chart.Combine [         
                     Chart.Line (buyingCall, Name = "buying call")
                     Chart.Line (sellingCall, Name = "selling call")

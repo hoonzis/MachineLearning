@@ -46,6 +46,9 @@
       <HintPath>packages\FSharp.Data.2.1.1\lib\net40\FSharp.Data.dll</HintPath>
       <Private>True</Private>
     </Reference>
+    <Reference Include="FSharp.Data.DesignTime">
+      <HintPath>..\appartee\packages\FSharp.Data.2.1.0\lib\net40\FSharp.Data.DesignTime.dll</HintPath>
+    </Reference>
     <Reference Include="FsUnit.NUnit">
       <HintPath>packages\FsUnit.1.3.0.1\Lib\Net40\FsUnit.NUnit.dll</HintPath>
       <Private>True</Private>
@@ -77,6 +80,7 @@
     <Compile Include="NeuralNetworks.fs" />
     <Compile Include="NeuralNetworksTests.fs" />
     <Compile Include="Options.fs" />
+    <Compile Include="OptionsTests.fs" />
     <Compile Include="Hopfield.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>

@@ -27,10 +27,22 @@ let rowi row (network:float[,]) =
 let coli col (network:float[,]) = 
     network.[*,col] |> Array.mapi (fun j e -> (e,j))
 
+let initialize random (cities:City list) =
+    let n = cities.Length
+    let r = System.Random()
+    let distances = calculateDistances cities
+    let maxDistance = distances |> Seq.cast<float> |> Seq.max
+    let u = Array2D.init n n (fun i j -> r.Next())
+    let uInit = Array2D.init n n (fun i j -> r.Next())
+    let network = Array2D.init n n (fun i j -> 0.75)
+    let E = 10000000
+    (network,distances,u,uInit)
+
+
 let singlePass (network:float[,]) (distances) (changes:float[,]) = 
-    let length = Array2D.length2 network
-    for X in 0 .. length-1 do
-        for i in 0 .. length-1 do
+    let n = (Array2D.length2 network) - 1
+    for X in 0 .. n do
+        for i in 0 .. n do
             let aSum = 2.0 * Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (network |> rowi X)
 
             let bSum = 2.0 * Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (network |> rowi i)
@@ -39,18 +51,33 @@ let singlePass (network:float[,]) (distances) (changes:float[,]) =
             let dudt = -1.0*aSum - bSum - dSum
             changes.[X,i] <- dudt
 
-    for X in 0 .. length-1 do
-        for i in 0 .. length-1 do
+    for X in 0 .. n do
+        for i in 0 .. n do
             let changeValue = tanh(changes.[X,i]/u0)
             network.[X,i] <- 0.5 * (1.0 * changeValue)
     
     let mutable EASum = 0.0
-    for X in 0 .. length-1 do
+    for X in 0 .. n do
         let EARowSum = network |> rowi X |> Array.sumBy (fun (e,i) -> network.[X,i])
         EASum <- EASum + abs EARowSum
 
     let mutable EBSum = 0.0
-    for X in 0 .. length-1 do
+    for X in 0 .. n do
         let EBColSum = network |> coli X |> Array.sumBy (fun (e,i) -> network.[X,i])
         EASum <- EBSum + abs EBColSum
     EASum + EBSum
+
+//returns the path of the current solution
+let currentPath network distances =
+    let n = (network |> Array2D.length2)-1
+    let path = Array.zeroCreate (n+1)
+    for i in 0 .. n do
+        path.[i] <- (network |> coli i) |> Array.maxBy (fun (e,index) -> e)
+    path
+
+//calculates the distance of the current path
+let calculateDistance path distances =
+    0
+
+let generateRandomCities = 
+    List.init (fun i -> )

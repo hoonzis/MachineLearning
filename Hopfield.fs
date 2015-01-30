@@ -1,6 +1,11 @@
 ﻿module MachineLearning.Hopfield
 open System
 open MachineLearning.NeuralNetwork
+open System.Drawing
+open FSharp.Charting
+open FSharp.Charting.ChartTypes
+open System.Windows.Forms
+open System.Windows.Forms.DataVisualization.Charting
 
 type City = {
     x : float
@@ -11,7 +16,7 @@ type City = {
 let u0 = 0.0
 
 let calculateDistances (cities:City list) = 
-    let distances = Array2D.create 2 2 0.0
+    let distances = Array2D.create cities.Length cities.Length 0.0
     for city in cities do
         for city1 in cities do
             let dif0 = abs(city.x-city1.x)**2.0
@@ -27,43 +32,48 @@ let rowi row (network:float[,]) =
 let coli col (network:float[,]) = 
     network.[*,col] |> Array.mapi (fun j e -> (e,j))
 
-let initialize random (cities:City list) =
+let initialize (cities:City list) =
     let n = cities.Length
     let r = System.Random()
     let distances = calculateDistances cities
     let maxDistance = distances |> Seq.cast<float> |> Seq.max
-    let u = Array2D.init n n (fun i j -> r.Next())
-    let uInit = Array2D.init n n (fun i j -> r.Next())
+    let u = Array2D.init n n (fun i j -> r.NextDouble())
     let network = Array2D.init n n (fun i j -> 0.75)
     let E = 10000000
-    (network,distances,u,uInit)
+    (network,distances,u, maxDistance)
 
 
-let singlePass (network:float[,]) (distances) (changes:float[,]) = 
-    let n = (Array2D.length2 network) - 1
+let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) maxDistance = 
+    let n = (Array2D.length2 v) - 1
     for X in 0 .. n do
         for i in 0 .. n do
-            let aSum = 2.0 * Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (network |> rowi X)
+            let aSum = 2.0 * Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
 
-            let bSum = 2.0 * Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (network |> rowi i)
+            let bSum = 2.0 * Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
 
-            let dSum = 0.0
+            let mutable dSum =0.0
+            for Y in 0 .. n do
+                let index1 = (n + 1+i) % n
+                let index2  = (n+i-1%n) % n
+                dSum <- dSum + 0.9 * v.[X,i] * (distances.[X,Y] / maxDistance) * (v.[Y,index1] + v.[Y,index2])
+
+            //momentum of given node
             let dudt = -1.0*aSum - bSum - dSum
-            changes.[X,i] <- dudt
+            u.[X,i] <- dudt
 
     for X in 0 .. n do
         for i in 0 .. n do
-            let changeValue = tanh(changes.[X,i]/u0)
-            network.[X,i] <- 0.5 * (1.0 * changeValue)
+            let changeValue = tanh(u.[X,i]/u0)
+            v.[X,i] <- 0.5 * (1.0 * changeValue)
     
     let mutable EASum = 0.0
     for X in 0 .. n do
-        let EARowSum = network |> rowi X |> Array.sumBy (fun (e,i) -> network.[X,i])
+        let EARowSum = v |> rowi X |> Array.sumBy (fun (e,i) -> v.[X,i])
         EASum <- EASum + abs EARowSum
 
     let mutable EBSum = 0.0
     for X in 0 .. n do
-        let EBColSum = network |> coli X |> Array.sumBy (fun (e,i) -> network.[X,i])
+        let EBColSum = v |> coli X |> Array.sumBy (fun (e,i) -> v.[X,i])
         EASum <- EBSum + abs EBColSum
     EASum + EBSum
 
@@ -76,8 +86,30 @@ let currentPath network distances =
     path
 
 //calculates the distance of the current path
-let calculateDistance path distances =
-    0
+let calculateDistance (path:int[]) (distances:float[,]) =
+    let mutable distance = 0
+    path |> Seq.ofArray |> Seq.pairwise |> Seq.sumBy (fun (i,j) -> distances.[i,j])
 
-let generateRandomCities = 
-    List.init (fun i -> )
+let generateRandomCities n = 
+    let r = System.Random()
+    List.init n (fun i -> 
+        { 
+            i=i
+            x=r.NextDouble()
+            y =r.NextDouble()
+        })
+
+let drawCities (cities:City list) =
+    let cityPoints = cities |> List.map (fun c -> (c.x,c.y))
+    let chart = Chart.Point cityPoints
+    let area = new ChartArea("Main")
+
+    let control = new ChartControl(chart)
+    control.Width <- 700
+    control.Height  <- 500
+
+    // Show the chart control on a top-most form
+    let mainForm = new Form(Visible = true, TopMost = true, 
+                            Width = 700, Height = 500)
+    mainForm.Controls.Add(control)
+    mainForm

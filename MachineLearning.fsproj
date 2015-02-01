@@ -81,6 +81,7 @@
     <Compile Include="NeuralNetworksTests.fs" />
     <Compile Include="Options.fs" />
     <Compile Include="OptionsTests.fs" />
+    <Compile Include="Combinatorics.fs" />
     <Compile Include="Hopfield.fs" />
     <Compile Include="HopfieldTests.fs" />
     <Compile Include="Stats.fs" />

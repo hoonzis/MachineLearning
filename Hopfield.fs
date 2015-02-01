@@ -1,6 +1,7 @@
 ﻿module MachineLearning.Hopfield
 open System
 open MachineLearning.NeuralNetwork
+open MachineLearning.Combinatorics
 open System.Drawing
 open FSharp.Charting
 open FSharp.Charting.ChartTypes
@@ -13,9 +14,21 @@ type City = {
     i : int
 }
 
-let u0 = 0.001
-let u0variation = 0.001;
-let dTimeInterval = 0.0001
+type HopfieldTspParams = {
+    A: float
+    B: float
+    D: float
+    u0: float
+    dTime: float
+}
+
+let DefaultParams = {
+    A = 0.1
+    B = 1.0
+    D = 2.0
+    u0 = 0.001
+    dTime = 0.0001
+}
 
 let calculateDistances (cities:City list) = 
     let distances = Array2D.create cities.Length cities.Length 0.0
@@ -24,8 +37,8 @@ let calculateDistances (cities:City list) =
             let dif0 = abs(city.x-city1.x)**2.0
             let dif1 =  abs(city.y-city1.y)**2.0
             distances.[city.i,city1.i] <- sqrt (dif0 + dif1)
-    distances
-    
+    let maxDistance = distances |> Seq.cast<float> |> Seq.max
+    distances |> Array2D.map (fun e -> e/maxDistance)
 
 //gets tuples of row containing element and index
 let rowi row (network:float[,]) = 
@@ -34,42 +47,41 @@ let rowi row (network:float[,]) =
 let coli col (network:float[,]) = 
     network.[*,col] |> Array.mapi (fun j e -> (e,j))
 
-let initialize (cities:City list) =
+let initialize (cities:City list) parameters =
     let n = cities.Length
     let r = System.Random(System.DateTime.Now.Millisecond)
     let distances = calculateDistances cities
-    let maxDistance = distances |> Seq.cast<float> |> Seq.max
     let u = Array2D.init n n (fun i j -> 
-            let randomU0 = float (r.Next(100) / 100)*(u0variation*2.0)-u0variation;
-            u0+randomU0
+            let randomU0 = float (r.Next(100) / 100)*(parameters.u0*2.0)-parameters.u0;
+            parameters.u0+randomU0
         )
     let network = Array2D.init n n (fun i j -> 0.75)
-    (network,distances,u, maxDistance)
+    (network,distances,u)
 
 
-let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) maxDistance = 
+let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters = 
     let n = Array2D.length2 v
     for X in 0 .. n - 1 do
         for i in 0 .. n-1 do
-            let aSum = 2.0 * Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) -1.0 (v |> rowi X)
+            let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) -1.0 (v |> rowi X)
 
-            let bSum = 2.0 * Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) -1.0 (v |> rowi i)
+            let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) -1.0 (v |> rowi i)
 
             let mutable dSum =0.0
             for Y in 0 .. n-1 do
                 let index1 = (n + 1+i) % n
                 let index2  = (n+i-1%n) % n
-                let dAdd = (distances.[X,Y] / maxDistance) * (v.[Y,index1] + v.[Y,index2])
+                let dAdd = distances.[X,Y] * (v.[Y,index1] + v.[Y,index2])
                 dSum <- dSum + 0.9 * dAdd
 
             //momentum of given node
-            let dudt = -1.0*aSum - bSum - dSum
-            u.[X,i] <-  u.[X,i] + dudt*dTimeInterval
+            let dudt = - parameters.A*aSum - parameters.B*bSum - parameters.D*dSum
+            u.[X,i] <-  u.[X,i] + dudt*parameters.dTime
 
     for X in 0 .. n-1 do
         for i in 0 .. n-1 do
             let ui = u.[X,i]
-            let changeValue = tanh(ui/u0)
+            let changeValue = tanh(ui/parameters.u0)
             v.[X,i] <- 0.5 * (1.0 + changeValue)
     
     let mutable EASum = 0.0
@@ -84,12 +96,18 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) maxDistance =
     EASum + EBSum
 
 //returns the path of the current solution
-let currentPath network distances =
+let currentPath network =
     let n = (network |> Array2D.length2)-1
     let path = Array.zeroCreate (n+1)
     for i in 0 .. n do
         path.[i] <- (network |> coli i) |> Array.maxBy (fun (e,index) -> e)
     path
+
+let isFeasable path =
+    let firstDuplicate = path |> Seq.ofArray |> Seq.pairwise |> Seq.tryFind (fun ((a,ai),(b,bi)) -> ai = bi)
+    match firstDuplicate with
+        | Some(x) -> false
+        | None -> true
 
 //calculates the distance of the current path
 let calculateDistance (path:int[]) (distances:float[,]) =
@@ -105,9 +123,40 @@ let generateRandomCities n =
             y =r.NextDouble()
         })
 
-let drawCities (cities:City list) =
+let testParameters (pms:float[]) = 
+    let cities = generateRandomCities 4
+    let parameters = {
+        A = pms.[0]
+        B = pms.[1]
+        D = pms.[2]
+        u0 = DefaultParams.u0
+        dTime = DefaultParams.dTime
+    }
+
+    let allTrialPaths = seq {
+        for trials in 0 .. 5 do
+            let (network,distances,u) = initialize cities parameters
+            for i in 0 .. 100 do 
+                singlePass network distances u DefaultParams |> ignore
+            let path = currentPath network
+            yield path
+    }
+    allTrialPaths |> Seq.forall isFeasable
+    
+let determineParameters =
+    let parametersValues = [0.1;1.0;2.0;10.0;30.0;100.0;1000.0]
+    let combinations = kCombinations 3 parametersValues
+    let validParameters = combinations |> List.filter (fun pms -> testParameters (pms |> Array.ofList))
+    printf "%A" validParameters
+
+let drawTSP (cities:City list) path =
     let cityPoints = cities |> List.map (fun c -> (c.x,c.y))
-    let chart = Chart.Point cityPoints
+    let line = (path |> Array.map (fun (v,i) -> cities.[i])) |> Array.map (fun c -> (c.x,c.y))
+    let chart = Chart.Combine [   
+                    Chart.Line line
+                    Chart.Point cityPoints
+                ]
+
     let area = new ChartArea("Main")
 
     let control = new ChartControl(chart)

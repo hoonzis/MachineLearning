@@ -101,3 +101,26 @@ let runTraining network iterations rate =
 
     let result = reduce allTrainings network
     result
+
+let determineParans =
+    let inNetwork = createRandomNetwork 2 2 1
+    
+    let mutable minDelta = 1000.0
+    let mutable minRate = 0.0
+    let mutable minIterations = 0
+    for i in 1 .. 50 do
+        let iterations = i*1000
+        for r in 1 .. 8 do
+            let mutable totalDelta = 0.0    
+            let rate = (float)r*0.1
+            let network = runTraining inNetwork iterations rate
+            for tIn in 0 .. (trainingPairs |> Array2D.length1)-1 do
+                let input = trainingPairs.[tIn,*]
+                let out = completepass input network 
+                totalDelta <- totalDelta + abs((deltaOutput out.output (xorFloats input)) |> Array.sum)
+            
+            if minDelta > totalDelta then
+                minDelta <- totalDelta
+                minRate <- rate
+                minIterations <- iterations
+    (minIterations,minRate,minDelta)

@@ -13,7 +13,9 @@ type City = {
     i : int
 }
 
-let u0 = 0.0
+let u0 = 0.001
+let u0variation = 0.001;
+let dTimeInterval = 0.0001
 
 let calculateDistances (cities:City list) = 
     let distances = Array2D.create cities.Length cities.Length 0.0
@@ -34,47 +36,51 @@ let coli col (network:float[,]) =
 
 let initialize (cities:City list) =
     let n = cities.Length
-    let r = System.Random()
+    let r = System.Random(System.DateTime.Now.Millisecond)
     let distances = calculateDistances cities
     let maxDistance = distances |> Seq.cast<float> |> Seq.max
-    let u = Array2D.init n n (fun i j -> r.NextDouble())
+    let u = Array2D.init n n (fun i j -> 
+            let randomU0 = float (r.Next(100) / 100)*(u0variation*2.0)-u0variation;
+            u0+randomU0
+        )
     let network = Array2D.init n n (fun i j -> 0.75)
-    let E = 10000000
     (network,distances,u, maxDistance)
 
 
 let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) maxDistance = 
-    let n = (Array2D.length2 v) - 1
-    for X in 0 .. n do
-        for i in 0 .. n do
-            let aSum = 2.0 * Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
+    let n = Array2D.length2 v
+    for X in 0 .. n - 1 do
+        for i in 0 .. n-1 do
+            let aSum = 2.0 * Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) -1.0 (v |> rowi X)
 
-            let bSum = 2.0 * Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
+            let bSum = 2.0 * Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) -1.0 (v |> rowi i)
 
             let mutable dSum =0.0
-            for Y in 0 .. n do
+            for Y in 0 .. n-1 do
                 let index1 = (n + 1+i) % n
                 let index2  = (n+i-1%n) % n
-                dSum <- dSum + 0.9 * v.[X,i] * (distances.[X,Y] / maxDistance) * (v.[Y,index1] + v.[Y,index2])
+                let dAdd = (distances.[X,Y] / maxDistance) * (v.[Y,index1] + v.[Y,index2])
+                dSum <- dSum + 0.9 * dAdd
 
             //momentum of given node
             let dudt = -1.0*aSum - bSum - dSum
-            u.[X,i] <- dudt
+            u.[X,i] <-  u.[X,i] + dudt*dTimeInterval
 
-    for X in 0 .. n do
-        for i in 0 .. n do
-            let changeValue = tanh(u.[X,i]/u0)
-            v.[X,i] <- 0.5 * (1.0 * changeValue)
+    for X in 0 .. n-1 do
+        for i in 0 .. n-1 do
+            let ui = u.[X,i]
+            let changeValue = tanh(ui/u0)
+            v.[X,i] <- 0.5 * (1.0 + changeValue)
     
     let mutable EASum = 0.0
-    for X in 0 .. n do
-        let EARowSum = v |> rowi X |> Array.sumBy (fun (e,i) -> v.[X,i])
+    for X in 0 .. n-1 do
+        let EARowSum = v |> rowi X |> Array.fold (fun acc (e,i) -> e + acc) -1.0
         EASum <- EASum + abs EARowSum
 
     let mutable EBSum = 0.0
-    for X in 0 .. n do
-        let EBColSum = v |> coli X |> Array.sumBy (fun (e,i) -> v.[X,i])
-        EASum <- EBSum + abs EBColSum
+    for X in 0 .. n-1 do
+        let EBColSum = v |> coli X |> Array.fold (fun acc (e,i) -> e + acc) -1.0
+        EBSum <- EBSum + abs EBColSum
     EASum + EBSum
 
 //returns the path of the current solution

@@ -83,6 +83,7 @@
     <Compile Include="OptionsTests.fs" />
     <Compile Include="Hopfield.fs" />
     <Compile Include="HopfieldTests.fs" />
+    <Compile Include="Stats.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
   <PropertyGroup>

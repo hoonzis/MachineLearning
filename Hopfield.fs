@@ -132,18 +132,21 @@ let generateRandomCities n =
 let initializeNetworkAndRun (parameters:HopfieldTspParams option) (n:int) =
     let cities = generateRandomCities n
     let initByDefault parameters = 
-        match parameters with
-            | Some(pValue) -> initialize cities pValue
-            | None -> initialize cities DefaultParams
-    
-    let (network, distances,u) = initByDefault parameters
-    for i in 0 .. 100 do 
-        singlePass network distances u DefaultParams |> ignore
-    let path = currentPath network
+            match parameters with
+                | Some(pValue) -> initialize cities pValue
+                | None -> initialize cities DefaultParams
+    let mutable invalidPath = false
+    let mutable path = Array.init n (fun i-> (float(i),i))
+    while invalidPath do
+        let (network, distances,u) = initByDefault parameters
+        for i in 0 .. 100 do 
+            singlePass network distances u DefaultParams |> ignore
+        path <- currentPath network
+        invalidPath <- isFeasable path
     (cities, path)
 
 let testParameters (pms:float[]) n = 
-    let cities = generateRandomCities n
+    
     let parameters = {
         A = pms.[0]
         B = pms.[1]
@@ -153,7 +156,8 @@ let testParameters (pms:float[]) n =
     }
 
     let allTrialPaths = seq {
-        for trials in 0 .. 20 do
+        for trials in 0 .. 30 do
+            let cities = generateRandomCities n
             let (network,distances,u) = initialize cities parameters
             for i in 0 .. 100 do 
                 singlePass network distances u DefaultParams |> ignore

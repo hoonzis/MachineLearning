@@ -10,9 +10,9 @@ let main argv =
     printf "%A" validParameters
 
     let parameters = Some ({
-        A = 2.0
-        B = 30.0
-        D = 100.0
+        A = 0.1
+        B = 2.0
+        D = 10.0
         u0 = 0.001
         dTime = 0.0001
     })

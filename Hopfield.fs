@@ -69,16 +69,16 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters =
     let n = Array2D.length2 v
     for X in 0 .. n - 1 do
         for i in 0 .. n-1 do
-            let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) -1.0 (v |> rowi X)
+            let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
 
-            let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) -1.0 (v |> rowi i)
+            let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
 
             let mutable dSum =0.0
             for Y in 0 .. n-1 do
                 let index1 = (n + 1+i) % n
                 let index2  = (n+i-1%n) % n
                 let dAdd = distances.[X,Y] * (v.[Y,index1] + v.[Y,index2])
-                dSum <- dSum + 0.9 * dAdd
+                dSum <- dSum + dAdd
 
             //momentum of given node
             let dudt = - parameters.A*aSum - parameters.B*bSum - parameters.D*dSum
@@ -156,19 +156,19 @@ let testParameters (pms:float[]) n =
     }
 
     let allTrialPaths = seq {
-        for trials in 0 .. 30 do
+        for trials in 0 .. 25 do
             let cities = generateRandomCities n
             let (network,distances,u) = initialize cities parameters
-            for i in 0 .. 100 do 
+            for i in 0 .. 50 do 
                 singlePass network distances u DefaultParams |> ignore
             let path = currentPath network
             yield path
     }
-    allTrialPaths |> forn 15 isFeasable
+    allTrialPaths |> forn 13 isFeasable
     
 let determineParameters n =
     let parametersValues = [0.1;1.0;2.0;10.0;30.0;100.0;1000.0]
-    let combinations = kCombinations 3 parametersValues
+    let combinations = (getCombsWithRep 3 parametersValues) |> List.ofSeq
     let validParameters = combinations |> List.filter (fun pms -> testParameters (pms |> Array.ofList) n)
     validParameters
 

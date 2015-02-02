@@ -1,4 +1,5 @@
 ﻿module MachineLearning.Hopfield
+
 open System
 open MachineLearning.NeuralNetwork
 open MachineLearning.Combinatorics
@@ -29,6 +30,11 @@ let DefaultParams = {
     u0 = 0.001
     dTime = 0.0001
 }
+
+
+let forn<'T> n (func:'T->bool) (collection:'T seq) = 
+    let count = collection |> Seq.filter func |> Seq.length
+    count >= n
 
 let calculateDistances (cities:City list) = 
     let distances = Array2D.create cities.Length cities.Length 0.0
@@ -123,8 +129,21 @@ let generateRandomCities n =
             y =r.NextDouble()
         })
 
-let testParameters (pms:float[]) = 
-    let cities = generateRandomCities 4
+let initializeNetworkAndRun (parameters:HopfieldTspParams option) (n:int) =
+    let cities = generateRandomCities n
+    let initByDefault parameters = 
+        match parameters with
+            | Some(pValue) -> initialize cities pValue
+            | None -> initialize cities DefaultParams
+    
+    let (network, distances,u) = initByDefault parameters
+    for i in 0 .. 100 do 
+        singlePass network distances u DefaultParams |> ignore
+    let path = currentPath network
+    (cities, path)
+
+let testParameters (pms:float[]) n = 
+    let cities = generateRandomCities n
     let parameters = {
         A = pms.[0]
         B = pms.[1]
@@ -134,22 +153,23 @@ let testParameters (pms:float[]) =
     }
 
     let allTrialPaths = seq {
-        for trials in 0 .. 5 do
+        for trials in 0 .. 20 do
             let (network,distances,u) = initialize cities parameters
             for i in 0 .. 100 do 
                 singlePass network distances u DefaultParams |> ignore
             let path = currentPath network
             yield path
     }
-    allTrialPaths |> Seq.forall isFeasable
+    allTrialPaths |> forn 15 isFeasable
     
-let determineParameters =
+let determineParameters n =
     let parametersValues = [0.1;1.0;2.0;10.0;30.0;100.0;1000.0]
     let combinations = kCombinations 3 parametersValues
-    let validParameters = combinations |> List.filter (fun pms -> testParameters (pms |> Array.ofList))
-    printf "%A" validParameters
+    let validParameters = combinations |> List.filter (fun pms -> testParameters (pms |> Array.ofList) n)
+    validParameters
 
 let drawTSP (cities:City list) path =
+    let feasable = isFeasable path
     let cityPoints = cities |> List.map (fun c -> (c.x,c.y))
     let line = (path |> Array.map (fun (v,i) -> cities.[i])) |> Array.map (fun c -> (c.x,c.y))
     let chart = Chart.Combine [   

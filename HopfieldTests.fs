@@ -39,6 +39,14 @@ let  ``isFeasable not good path returns false``() =
     let path = currentPath network
     isFeasable path |> should equal false
 
+[<Test>]
+let  ``test forn``() = 
+    let list = [|0.0;0.0;1.0|]
+    let result = list |> forn 2 (fun i->i=0.0)
+    result |>should equal true
+    let result1 = list |> forn 3 (fun i->i=0.0)
+    result1 |> should equal false
+
 
 [<Test>]
 let ``1 iteration``() =

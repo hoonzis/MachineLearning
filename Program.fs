@@ -5,13 +5,19 @@ open System
 open System.Windows.Forms
 
 [<EntryPoint>]
-let main argv = 
-    printfn "%A" argv
-    //determineParameters
-    let cities = generateRandomCities 4
-    let (network,distances,u) = initialize cities DefaultParams
-    for i in 0 .. 100 do 
-        singlePass network distances u DefaultParams |> ignore
-    let path = currentPath network
+let main argv =
+    let validParameters = determineParameters 5
+    printf "%A" validParameters
+
+    let parameters = Some ({
+        A = 2.0
+        B = 30.0
+        D = 100.0
+        u0 = 0.001
+        dTime = 0.0001
+    })
+
+    
+    let (cities,path) = initializeNetworkAndRun parameters 5
     Application.Run(drawTSP cities path)
     0

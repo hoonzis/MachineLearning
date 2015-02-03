@@ -69,9 +69,9 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters =
     let n = Array2D.length2 v
     for X in 0 .. n - 1 do
         for i in 0 .. n-1 do
-            let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
+            let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) -1.0 (v |> rowi X)
 
-            let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
+            let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) -1.0 (v |> rowi i)
 
             let mutable dSum =0.0
             for Y in 0 .. n-1 do
@@ -116,9 +116,9 @@ let isFeasable path =
         | None -> true
 
 //calculates the distance of the current path
-let calculateDistance (path:int[]) (distances:float[,]) =
+let calculateDistance path (distances:float[,]) =
     let mutable distance = 0
-    path |> Seq.ofArray |> Seq.pairwise |> Seq.sumBy (fun (i,j) -> distances.[i,j])
+    path |> Seq.ofArray |> Seq.pairwise |> Seq.sumBy (fun ((v,i),(v1,j)) -> distances.[i,j])
 
 let generateRandomCities n = 
     let r = System.Random()
@@ -151,25 +151,30 @@ let testParameters (pms:float[]) n =
         A = pms.[0]
         B = pms.[1]
         D = pms.[2]
-        u0 = DefaultParams.u0
+        u0 = pms.[3]
         dTime = DefaultParams.dTime
     }
 
     let allTrialPaths = seq {
-        for trials in 0 .. 25 do
+        for trials in 0 .. 80 do
             let cities = generateRandomCities n
             let (network,distances,u) = initialize cities parameters
             for i in 0 .. 50 do 
                 singlePass network distances u DefaultParams |> ignore
             let path = currentPath network
-            yield path
+            yield (path, calculateDistance path distances, isFeasable path)
     }
-    allTrialPaths |> forn 13 isFeasable
-    
+    let feasable = allTrialPaths |> Seq.filter (fun (p,dist,feasable) -> feasable = true) |> List.ofSeq
+    let count = List.length feasable
+    if count > 50 then
+        Some(feasable |> List.averageBy (fun (p,dist,ok) ->dist))
+    else
+        None
+
 let determineParameters n =
-    let parametersValues = [0.1;1.0;2.0;10.0;30.0;100.0;1000.0]
-    let combinations = (getCombsWithRep 3 parametersValues) |> List.ofSeq
-    let validParameters = combinations |> List.filter (fun pms -> testParameters (pms |> Array.ofList) n)
+    let parametersValues = [0.1;0.5;1.0;2.0;10.0;30.0;100.0;500.0;1000.0]
+    let combinations = (getCombsWithRep 4 parametersValues) |> List.ofSeq
+    let validParameters = combinations |> List.map (fun pms -> (pms,testParameters (Array.ofList pms) n)) |> List.filter (fun (pms,avgDist) -> avgDist.IsSome)
     validParameters
 
 let drawTSP (cities:City list) path =

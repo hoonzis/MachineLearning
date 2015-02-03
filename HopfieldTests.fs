@@ -83,3 +83,8 @@ let ``100 iterations``() =
     printf "%A" path
     printf "%A" network
 
+[<Test>]
+let ``Determine parameters``() =
+    let validParameters = determineParameters 6
+    printf "%A" validParameters
+

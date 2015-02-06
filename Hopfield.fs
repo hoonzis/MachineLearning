@@ -21,6 +21,8 @@ type HopfieldTspParams = {
     D: float
     u0: float
     dTime: float
+    Rho: float
+    C: float
 }
 
 let DefaultParams = {
@@ -28,7 +30,9 @@ let DefaultParams = {
     B = 1.0
     D = 2.0
     u0 = 0.001
-    dTime = 0.0001
+    dTime = 0.00001
+    Rho = 1.0
+    C = 90.0
 }
 
 
@@ -57,9 +61,9 @@ let initialize (cities:City list) parameters =
     let n = cities.Length
     let r = System.Random(System.DateTime.Now.Millisecond)
     let distances = calculateDistances cities
-    let u = Array2D.init n n (fun i j -> 
-            let randomU0 = float (r.Next(100) / 100)*(parameters.u0*2.0)-parameters.u0;
-            parameters.u0+randomU0
+    let u = Array2D.init n n (fun i j -> r.NextDouble()
+            //let randomU0 = float (r.Next(100) / 100)*(parameters.u0*2.0)-parameters.u0;
+            //parameters.u0+randomU0
         )
     let network = Array2D.init n n (fun i j -> 0.75)
     (network,distances,u)
@@ -69,9 +73,15 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters =
     let n = Array2D.length2 v
     for X in 0 .. n - 1 do
         for i in 0 .. n-1 do
-            let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) -1.0 (v |> rowi X)
+            let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
 
-            let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) -1.0 (v |> rowi i)
+            let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
+            
+            let mutable cSum = 0.0
+            for x in 0 .. n-1 do
+                for j in 0 .. n-1 do
+                    cSum <- cSum + v.[x,j]
+            cSum <- cSum - (float(n) + parameters.Rho)
 
             let mutable dSum =0.0
             for Y in 0 .. n-1 do
@@ -81,15 +91,17 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters =
                 dSum <- dSum + dAdd
 
             //momentum of given node
-            let dudt = - parameters.A*aSum - parameters.B*bSum - parameters.D*dSum
-            u.[X,i] <-  u.[X,i] + dudt*parameters.dTime
+            let dudt = parameters.A*aSum - parameters.B*bSum - parameters.C*cSum - parameters.D*dSum
+            u.[X,i] <- u.[X,i] + parameters.dTime*(-u.[X,i] + dudt)
 
     for X in 0 .. n-1 do
         for i in 0 .. n-1 do
             let ui = u.[X,i]
             let changeValue = tanh(ui/parameters.u0)
             v.[X,i] <- 0.5 * (1.0 + changeValue)
-    
+
+    (*
+    It seems like we don't care about energy
     let mutable EASum = 0.0
     for X in 0 .. n-1 do
         let EARowSum = v |> rowi X |> Array.fold (fun acc (e,i) -> e + acc) -1.0
@@ -100,6 +112,9 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters =
         let EBColSum = v |> coli X |> Array.fold (fun acc (e,i) -> e + acc) -1.0
         EBSum <- EBSum + abs EBColSum
     EASum + EBSum
+        *)
+    0.0
+    
 
 //returns the path of the current solution
 let currentPath network =
@@ -145,7 +160,7 @@ let initializeNetworkAndRun (parameters:HopfieldTspParams option) (n:int) =
         invalidPath <- isFeasable path
     (cities, path)
 
-let testParameters (pms:float[]) n = 
+let testParameters (pms:float[]) cities = 
     
     let parameters = {
         A = pms.[0]
@@ -153,28 +168,32 @@ let testParameters (pms:float[]) n =
         D = pms.[2]
         u0 = pms.[3]
         dTime = DefaultParams.dTime
+        Rho = DefaultParams.Rho
+        C = DefaultParams.C
     }
 
     let allTrialPaths = seq {
-        for trials in 0 .. 80 do
-            let cities = generateRandomCities n
+        for trials in 0 .. 70 do        
             let (network,distances,u) = initialize cities parameters
-            for i in 0 .. 50 do 
+            for i in 0 .. 100 do 
                 singlePass network distances u DefaultParams |> ignore
             let path = currentPath network
-            yield (path, calculateDistance path distances, isFeasable path)
+            let distance = calculateDistance path distances
+            let feasable = isFeasable path
+            yield (path, distance, feasable)
     }
     let feasable = allTrialPaths |> Seq.filter (fun (p,dist,feasable) -> feasable = true) |> List.ofSeq
     let count = List.length feasable
-    if count > 50 then
+    if count > 34 then
         Some(feasable |> List.averageBy (fun (p,dist,ok) ->dist))
     else
         None
 
 let determineParameters n =
-    let parametersValues = [0.1;0.5;1.0;2.0;10.0;30.0;100.0;500.0;1000.0]
+    let parametersValues = [0.0001;0.001;0.01;0.5;0.1;0.5;1.0;2.0;10.0;30.0;100.0;500.0;1000.0]
     let combinations = (getCombsWithRep 4 parametersValues) |> List.ofSeq
-    let validParameters = combinations |> List.map (fun pms -> (pms,testParameters (Array.ofList pms) n)) |> List.filter (fun (pms,avgDist) -> avgDist.IsSome)
+    let cities = generateRandomCities n
+    let validParameters = combinations |> List.map (fun pms -> (pms,testParameters (Array.ofList pms) cities)) |> List.filter (fun (pms,avgDist) -> avgDist.IsSome)
     validParameters
 
 let drawTSP (cities:City list) path =

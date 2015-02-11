@@ -26,10 +26,10 @@ type HopfieldTspParams = {
 }
 
 let DefaultParams = {
-    A = 0.1
-    B = 1.0
+    A = 100.0
+    B = 100.0
     D = 2.0
-    u0 = 0.001
+    u0 = 1.0
     dTime = 0.00001
     Rho = 1.0
     C = 90.0
@@ -86,18 +86,20 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters =
             let mutable dSum =0.0
             for Y in 0 .. n-1 do
                 let index1 = (n + 1+i) % n
-                let index2  = (n+i-1%n) % n
+                let index2  = (n + i-1) % n
                 let dAdd = distances.[X,Y] * (v.[Y,index1] + v.[Y,index2])
                 dSum <- dSum + dAdd
 
             //momentum of given node
             let dudt = parameters.A*aSum - parameters.B*bSum - parameters.C*cSum - parameters.D*dSum
             u.[X,i] <- u.[X,i] + parameters.dTime*(-u.[X,i] + dudt)
+            //u.[X,i] <- dudt
 
     for X in 0 .. n-1 do
         for i in 0 .. n-1 do
             let ui = u.[X,i]
-            let changeValue = tanh(ui/parameters.u0)
+            let divided = ui / parameters.u0
+            let changeValue = tanh divided
             v.[X,i] <- 0.5 * (1.0 + changeValue)
 
     (*
@@ -163,19 +165,19 @@ let initializeNetworkAndRun (parameters:HopfieldTspParams option) (n:int) =
 let testParameters (pms:float[]) cities = 
     
     let parameters = {
-        A = pms.[0]
-        B = pms.[1]
-        D = pms.[2]
-        u0 = pms.[3]
+        A = DefaultParams.A
+        B = DefaultParams.B
+        D = pms.[0]
+        u0 = DefaultParams.u0
         dTime = DefaultParams.dTime
-        Rho = DefaultParams.Rho
-        C = DefaultParams.C
+        Rho = pms.[1]
+        C = pms.[2]
     }
 
     let allTrialPaths = seq {
-        for trials in 0 .. 70 do        
+        for trials in 0 .. 24 do        
             let (network,distances,u) = initialize cities parameters
-            for i in 0 .. 100 do 
+            for i in 0 .. 50 do 
                 singlePass network distances u DefaultParams |> ignore
             let path = currentPath network
             let distance = calculateDistance path distances
@@ -184,14 +186,14 @@ let testParameters (pms:float[]) cities =
     }
     let feasable = allTrialPaths |> Seq.filter (fun (p,dist,feasable) -> feasable = true) |> List.ofSeq
     let count = List.length feasable
-    if count > 34 then
+    if count > 15 then
         Some(feasable |> List.averageBy (fun (p,dist,ok) ->dist))
     else
         None
 
 let determineParameters n =
-    let parametersValues = [0.0001;0.001;0.01;0.5;0.1;0.5;1.0;2.0;10.0;30.0;100.0;500.0;1000.0]
-    let combinations = (getCombsWithRep 4 parametersValues) |> List.ofSeq
+    let parametersValues = [0.1;0.01;1.0;30.0;50.0;100.0]
+    let combinations = (getCombsWithRep 3 parametersValues) |> List.ofSeq
     let cities = generateRandomCities n
     let validParameters = combinations |> List.map (fun pms -> (pms,testParameters (Array.ofList pms) cities)) |> List.filter (fun (pms,avgDist) -> avgDist.IsSome)
     validParameters

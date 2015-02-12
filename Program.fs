@@ -30,20 +30,20 @@ let printToFile filename obj =
 
 [<EntryPoint>]
 let main argv =
-    let validParameters = determineParameters 6
+    let validParameters = determineParameters 8
     printToFile "C:\\test\\output.txt" validParameters
 
     let parameters = Some ({
-        A = 0.1
-        B = 0.1
-        D = 2.0
-        u0 = 30.0
-        dTime = DefaultParams.C
-        Rho = DefaultParams.C
-        C = DefaultParams.C
+        A = DefaultParams.A
+        B = DefaultParams.B
+        D = 1.0
+        u0 = DefaultParams.u0
+        dTime = DefaultParams.dTime
+        Rho = 30.0
+        C = 30.0
     })
 
     
-    let (cities,path) = initializeNetworkAndRun parameters 6
+    let (cities,path) = initializeNetworkAndRun parameters 8
     Application.Run(drawTSP cities path)
     0

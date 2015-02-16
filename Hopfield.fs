@@ -104,7 +104,7 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters =
 
 let singleRandomPass (v:float[,]) (distances:float[,]) (u:float[,]) parameters (r:System.Random) = 
     let n = Array2D.length2 v
-    for c in 0 .. 1000 do
+    for c in 0 .. 500 do
         let X = r.Next(n)
         let i = r.Next(n)
     
@@ -113,17 +113,25 @@ let singleRandomPass (v:float[,]) (distances:float[,]) (u:float[,]) parameters (
         let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
             
         let mutable cSum = 0.0
+        let mutable dSum =0.0
         for x in 0 .. n-1 do
             for j in 0 .. n-1 do
                 cSum <- cSum + v.[x,j]
+            let index1 = (n + 1+i) % n
+            let index2  = (n+i-1%n) % n
+            let dAdd = distances.[X,x] * (v.[x,index1] + v.[x,index2])
+            dSum <- dSum + dAdd
         cSum <- cSum - (float(n) + parameters.Rho)
 
-        let mutable dSum =0.0
+        
+        (*
+        moved this to single for loop
         for Y in 0 .. n-1 do
             let index1 = (n + 1+i) % n
             let index2  = (n+i-1%n) % n
             let dAdd = distances.[X,Y] * (v.[Y,index1] + v.[Y,index2])
             dSum <- dSum + dAdd
+        *)
 
         //momentum of given node
         let dudt = -parameters.A*aSum - parameters.B*bSum - parameters.C*cSum - parameters.D*dSum
@@ -193,9 +201,11 @@ let testParameters (pms:float[]) n =
     }
 
     let allTrialPaths = seq {
-        for city in 0 .. 8 do
+        let trialsCount = ref 0
+        let feasableCount = ref 0
+        for city in 0 .. 10 do
             let cities = generateRandomCities n
-            for trials in 0 .. 20 do        
+            for trials in 1 .. 20 do        
                 let (network,distances,u) = initialize cities parameters
                 let r = new System.Random()
                 for i in 0 .. 80 do 
@@ -203,13 +213,20 @@ let testParameters (pms:float[]) n =
                 let path = currentPath network
                 let distance = calculateDistance path distances
                 let feasable = isFeasable path
-                yield (path, distance, feasable)
+                if feasable then incr feasableCount
+                yield (path, distance, feasable, float(!feasableCount)/float(!trialsCount), trials)
     }
-    let feasable = allTrialPaths |> Seq.filter (fun (p,dist,feasable) -> feasable = true) |> List.ofSeq
+      
+    let feasable = allTrialPaths 
+                    |> Seq.takeWhile (fun (p,dist,feasable, rate, trials) -> rate > 0.4 || trials<30) 
+                    |> Seq.map (fun (p,dist,feasable, rate, trials) -> (p,dist,feasable)) 
+                    |> Seq.filter (fun (p,dist,feasable) -> feasable = true) 
+                    |> List.ofSeq
+
     let count = List.length feasable
     //return a tuple of conversionRate and avgRouteSize
     let avgRouteSize = if count > 0 then feasable |> List.averageBy (fun (p,dist,ok) ->dist) else 0.0
-    float(count)/160.0, avgRouteSize
+    float(count)/200.0, avgRouteSize
     
 let determineParameters n =
     let parametersValues = [0.1;0.01;1.0;5.0;10.0;100.0]

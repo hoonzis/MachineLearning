@@ -212,10 +212,10 @@ let testParameters (pms:float[]) n =
     float(count)/160.0, avgRouteSize
     
 let determineParameters n =
-    let parametersValues = [0.1;0.01;1.0;5.0;10.0]
+    let parametersValues = [0.1;0.01;1.0;5.0;10.0;100.0]
     let combinations = (getCombsWithRep 6 parametersValues) |> List.ofSeq
     let validParameters = combinations |> List.map (fun pms -> (pms,testParameters (Array.ofList pms) n)) |> List.map (fun (pms,distAndRate) -> pms,fst(distAndRate),snd(distAndRate))
-    validParameters |> List.sortBy (fun (pms,convRate, avgRoute) -> convRate)
+    validParameters |> List.sortBy (fun (pms,convRate, avgRoute) -> convRate) |> List.rev |> Seq.take 20 |> Seq.toList
 
 let drawTSP (cities:City list) path =
     let feasable = isFeasable path

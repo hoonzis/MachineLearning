@@ -108,7 +108,7 @@ let singleRandomPass (v:float[,]) (distances:float[,]) (u:float[,]) parameters (
     
     let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
 
-    let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
+    let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> coli i)
             
     let mutable cSum = 0.0
     let mutable dSum =0.0
@@ -141,12 +141,6 @@ let singleRandomPass (v:float[,]) (distances:float[,]) (u:float[,]) parameters (
     v.[X,i] <- 0.5 * (1.0 + changeValue)
     netWorkValue + v.[X,i] - oldVXi
 
-let duplicates items =
-    items
-    |> Seq.countBy id
-    |> Seq.filter (snd >> ((<) 1))
-    |> Seq.map fst
-
 //returns the path of the current solution
 let currentPath network =
     let n = (network |> Array2D.length2)-1
@@ -173,25 +167,27 @@ let generateRandomCities n =
             y =r.NextDouble()
         })
 
-let isStable (n:int) nValue = if nValue < 0.7*float(n*n) then true else false
+let notStable (n:int) nValue = if nValue < 0.75*float(n*n) && nValue >= 1.2*float(n) then true else false
 
-let initAndRunUntilStable cities pms r distances n = 
+let initAndRunUntilStable cities pms distances n = 
+    let r = new Random()
     let (network,u) = initialize cities pms
     let mutable nValue = network |> Seq.cast<float> |> Seq.sum
     let mutable continueLooping = true
+    let mutable iterCount = 0
     while continueLooping do
         nValue <- singleRandomPass network distances u pms r nValue
-        continueLooping <- isStable n nValue
+        iterCount <- iterCount + 1
+        continueLooping <- (notStable n nValue) && iterCount < 5000
     network
 
 let initializeNetworkAndRun (pms:HopfieldTspParams ) (n:int) =
     let cities = generateRandomCities n
     let distances = calculateDistances cities
-    let r = new Random()
     let maxNaValue = float(n*n)
     let paths = seq {
         for i in 0..20 do
-            let network = initAndRunUntilStable cities pms r distances n
+            let network = initAndRunUntilStable cities pms distances n
             let path = currentPath network
             yield path
     } 
@@ -220,11 +216,9 @@ let testParameters (pms:float[]) n =
         for city in 0 .. 20 do
             let cities = generateRandomCities n
             let distances = calculateDistances cities
-            for trials in 1 .. 10 do        
-                let (network,u) = initialize cities parameters
-                let r = new System.Random()
-                for i in 0 .. 80 do 
-                    singleRandomPass network distances u parameters r |> ignore
+            for trials in 1 .. 10 do
+                let r = new Random()
+                let network = initAndRunUntilStable cities parameters distances n
                 let path = currentPath network
                 let distance = calculateDistance path distances
                 let feasable = isFeasable path
@@ -243,7 +237,7 @@ let testParameters (pms:float[]) n =
     let count = List.length feasable
     //return a tuple of conversionRate and avgRouteSize
     let avgRouteSize = if count > 0 then feasable |> List.averageBy (fun (p,dist,ok) ->dist) else 0.0
-    float(count)/200.0, avgRouteSize
+    float(count)/220.0, avgRouteSize
     
 let determineParameters n pmsRange =
     let combinations = (getCombsWithRep 7 pmsRange) |> List.ofSeq

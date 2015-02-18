@@ -60,10 +60,9 @@ let coli col (network:float[,]) =
 let initialize (cities:City list) parameters =
     let n = cities.Length
     let r = System.Random(System.DateTime.Now.Millisecond)
-    let distances = calculateDistances cities
     let u = Array2D.init n n (fun i j -> r.NextDouble())
     let network = Array2D.init n n (fun i j -> 0.75)
-    (network,distances,u)
+    (network,u)
 
 
 let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters = 
@@ -102,47 +101,51 @@ let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters =
             v.[X,i] <- 0.5 * (1.0 + changeValue)
     0.0
 
-let singleRandomPass (v:float[,]) (distances:float[,]) (u:float[,]) parameters (r:System.Random) = 
+let singleRandomPass (v:float[,]) (distances:float[,]) (u:float[,]) parameters (r:System.Random) netWorkValue = 
     let n = Array2D.length2 v
-    for c in 0 .. 500 do
-        let X = r.Next(n)
-        let i = r.Next(n)
+    let X = r.Next(n)
+    let i = r.Next(n)
     
-        let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
+    let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
 
-        let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
+    let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
             
-        let mutable cSum = 0.0
-        let mutable dSum =0.0
-        for x in 0 .. n-1 do
-            for j in 0 .. n-1 do
-                cSum <- cSum + v.[x,j]
-            let index1 = (n + 1+i) % n
-            let index2  = (n+i-1%n) % n
-            let dAdd = distances.[X,x] * (v.[x,index1] + v.[x,index2])
-            dSum <- dSum + dAdd
-        cSum <- cSum - (float(n) + parameters.Rho)
+    let mutable cSum = 0.0
+    let mutable dSum =0.0
+    for x in 0 .. n-1 do
+        for j in 0 .. n-1 do
+            cSum <- cSum + v.[x,j]
+        let index1 = (n + 1+i) % n
+        let index2  = (n+i-1%n) % n
+        let dAdd = distances.[X,x] * (v.[x,index1] + v.[x,index2])
+        dSum <- dSum + dAdd
+    cSum <- cSum - (float(n) + parameters.Rho)
 
         
-        (*
-        moved this to single for loop
-        for Y in 0 .. n-1 do
-            let index1 = (n + 1+i) % n
-            let index2  = (n+i-1%n) % n
-            let dAdd = distances.[X,Y] * (v.[Y,index1] + v.[Y,index2])
-            dSum <- dSum + dAdd
-        *)
+    (*
+    moved this to single for loop
+    for Y in 0 .. n-1 do
+        let index1 = (n + 1+i) % n
+        let index2  = (n+i-1%n) % n
+        let dAdd = distances.[X,Y] * (v.[Y,index1] + v.[Y,index2])
+        dSum <- dSum + dAdd
+    *)
 
-        //momentum of given node
-        let dudt = -parameters.A*aSum - parameters.B*bSum - parameters.C*cSum - parameters.D*dSum
-        u.[X,i] <- u.[X,i] + parameters.dTime*(-u.[X,i] + dudt)
+    //momentum of given node
+    let dudt = -parameters.A*aSum - parameters.B*bSum - parameters.C*cSum - parameters.D*dSum
+    u.[X,i] <- u.[X,i] + parameters.dTime*(-u.[X,i] + dudt)
 
-        let ui = u.[X,i]
-        let changeValue = tanh(ui/parameters.u0)
-        v.[X,i] <- 0.5 * (1.0 + changeValue)
-    0.0    
+    let ui = u.[X,i]
+    let changeValue = tanh(ui/parameters.u0)
+    let oldVXi = v.[X,i]
+    v.[X,i] <- 0.5 * (1.0 + changeValue)
+    netWorkValue + v.[X,i] - oldVXi
 
-    
+let duplicates items =
+    items
+    |> Seq.countBy id
+    |> Seq.filter (snd >> ((<) 1))
+    |> Seq.map fst
 
 //returns the path of the current solution
 let currentPath network =
@@ -153,10 +156,8 @@ let currentPath network =
     path
 
 let isFeasable path =
-    let firstDuplicate = path |> Seq.ofArray |> Seq.pairwise |> Seq.tryFind (fun ((a,ai),(b,bi)) -> ai = bi)
-    match firstDuplicate with
-        | Some(x) -> false
-        | None -> true
+    let counts = path |> Seq.countBy (fun (c,e)->e) |> List.ofSeq
+    not (counts |> Seq.exists (fun (e,i) -> i>1))
 
 //calculates the distance of the current path
 let calculateDistance path (distances:float[,]) =
@@ -172,41 +173,55 @@ let generateRandomCities n =
             y =r.NextDouble()
         })
 
-let initializeNetworkAndRun (parameters:HopfieldTspParams option) (n:int) =
-    let cities = generateRandomCities n
-    let initByDefault parameters = 
-            match parameters with
-                | Some(pValue) -> initialize cities pValue
-                | None -> initialize cities DefaultParams
-    let mutable invalidPath = false
-    let mutable path = Array.init n (fun i-> (float(i),i))
-    while invalidPath do
-        let (network, distances,u) = initByDefault parameters
-        for i in 0 .. 100 do 
-            singlePass network distances u DefaultParams |> ignore
-        path <- currentPath network
-        invalidPath <- isFeasable path
-    (cities, path)
+let isStable (n:int) nValue = if nValue < 0.7*float(n*n) then true else false
 
-let testParameters (pms:float[]) n = 
+let initAndRunUntilStable cities pms r distances n = 
+    let (network,u) = initialize cities pms
+    let mutable nValue = network |> Seq.cast<float> |> Seq.sum
+    let mutable continueLooping = true
+    while continueLooping do
+        nValue <- singleRandomPass network distances u pms r nValue
+        continueLooping <- isStable n nValue
+    network
+
+let initializeNetworkAndRun (pms:HopfieldTspParams ) (n:int) =
+    let cities = generateRandomCities n
+    let distances = calculateDistances cities
+    let r = new Random()
+    let maxNaValue = float(n*n)
+    let paths = seq {
+        for i in 0..20 do
+            let network = initAndRunUntilStable cities pms r distances n
+            let path = currentPath network
+            yield path
+    } 
     
+    let minPath = paths |> Seq.filter (fun p-> isFeasable p) |> Seq.minBy (fun p -> calculateDistance p distances)
+    cities,minPath
+
+let paramsFromArray (pms:float[]) = 
     let parameters = {
         A = pms.[0]
         B = pms.[1]
         D = pms.[2]
         u0 = pms.[3]
-        dTime = DefaultParams.dTime
-        Rho = pms.[4]
-        C = pms.[5]
+        dTime = pms.[4]
+        Rho = pms.[5]
+        C = pms.[6]
     }
+    parameters
+
+let testParameters (pms:float[]) n = 
+    let parameters = paramsFromArray pms
 
     let allTrialPaths = seq {
         let trialsCount = ref 0
         let feasableCount = ref 0
-        for city in 0 .. 10 do
+        for city in 0 .. 20 do
             let cities = generateRandomCities n
-            for trials in 1 .. 20 do        
-                let (network,distances,u) = initialize cities parameters
+            let distances = calculateDistances cities
+            for trials in 1 .. 10 do        
+                let (network,u) = initialize cities parameters
                 let r = new System.Random()
                 for i in 0 .. 80 do 
                     singleRandomPass network distances u parameters r |> ignore
@@ -214,11 +229,13 @@ let testParameters (pms:float[]) n =
                 let distance = calculateDistance path distances
                 let feasable = isFeasable path
                 if feasable then incr feasableCount
-                yield (path, distance, feasable, float(!feasableCount)/float(!trialsCount), trials)
+                incr trialsCount
+                let currentRate = float(!feasableCount)/float(!trialsCount)
+                yield (path, distance, feasable, currentRate, !trialsCount)
     }
       
     let feasable = allTrialPaths 
-                    |> Seq.takeWhile (fun (p,dist,feasable, rate, trials) -> rate > 0.4 || trials<30) 
+                    |> Seq.takeWhile (fun (p,dist,feasable, rate, trials) -> rate > 0.45 || trials<30) 
                     |> Seq.map (fun (p,dist,feasable, rate, trials) -> (p,dist,feasable)) 
                     |> Seq.filter (fun (p,dist,feasable) -> feasable = true) 
                     |> List.ofSeq
@@ -228,9 +245,8 @@ let testParameters (pms:float[]) n =
     let avgRouteSize = if count > 0 then feasable |> List.averageBy (fun (p,dist,ok) ->dist) else 0.0
     float(count)/200.0, avgRouteSize
     
-let determineParameters n =
-    let parametersValues = [0.1;0.01;1.0;5.0;10.0;100.0]
-    let combinations = (getCombsWithRep 6 parametersValues) |> List.ofSeq
+let determineParameters n pmsRange =
+    let combinations = (getCombsWithRep 7 pmsRange) |> List.ofSeq
     let validParameters = combinations |> List.map (fun pms -> (pms,testParameters (Array.ofList pms) n)) |> List.map (fun (pms,distAndRate) -> pms,fst(distAndRate),snd(distAndRate))
     validParameters |> List.sortBy (fun (pms,convRate, avgRoute) -> convRate) |> List.rev |> Seq.take 20 |> Seq.toList
 

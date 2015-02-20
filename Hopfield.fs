@@ -19,22 +19,11 @@ type HopfieldTspParams = {
     A: float
     B: float
     D: float
-    u0: float
+    alfa: float
     dTime: float
     Rho: float
     C: float
 }
-
-let DefaultParams = {
-    A = 0.1
-    B = 0.1
-    D = 0.1
-    u0 = 0.01
-    dTime = 0.00001
-    Rho = 0.01
-    C = 0.01
-}
-
 
 let forn<'T> n (func:'T->bool) (collection:'T seq) = 
     let count = collection |> Seq.filter func |> Seq.length
@@ -64,82 +53,37 @@ let initialize (cities:City list) parameters =
     let network = Array2D.init n n (fun i j -> 0.75)
     (network,u)
 
+let sumAllBut (i:int) (values:(float*int)[]) = 
+    Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 values
 
-let singlePass (v:float[,]) (distances:float[,]) (u:float[,]) parameters = 
-    let n = Array2D.length2 v
-    let r = System.Random()
+let dSumCalc distances (v:float[,]) city position n = 
+    (distances |> rowi city) |> Array.sumBy (fun (e,i) -> 
+        let index1 = (n+position+1) % n
+        let index2  = (n+position-1) % n
+        e*(v.[i,index1] + v.[i,index2])
+    )
     
-    for X in 0 .. n - 1 do
-        for i in 0 .. n-1 do
-            let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
-
-            let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> rowi i)
-            
-            let mutable cSum = 0.0
-            for x in 0 .. n-1 do
-                for j in 0 .. n-1 do
-                    cSum <- cSum + v.[x,j]
-            cSum <- cSum - (float(n) + parameters.Rho)
-
-            let mutable dSum =0.0
-            for Y in 0 .. n-1 do
-                let index1 = (n + 1+i) % n
-                let index2  = (n + i-1) % n
-                let dAdd = distances.[X,Y] * (v.[Y,index1] + v.[Y,index2])
-                dSum <- dSum + dAdd
-
-            //momentum of given node
-            let dudt = -parameters.A*aSum - parameters.B*bSum - parameters.C*cSum - parameters.D*dSum
-            u.[X,i] <- u.[X,i] + parameters.dTime*(-u.[X,i] + dudt)
-            //u.[X,i] <- dudt
-
-    for X in 0 .. n-1 do
-        for i in 0 .. n-1 do
-            let ui = u.[X,i]
-            let divided = ui / parameters.u0
-            let changeValue = tanh divided
-            v.[X,i] <- 0.5 * (1.0 + changeValue)
-    0.0
-
 let singleRandomPass (v:float[,]) (distances:float[,]) (u:float[,]) parameters (r:System.Random) netWorkValue = 
     let n = Array2D.length2 v
-    let X = r.Next(n)
-    let i = r.Next(n)
+    let city = r.Next(n)
+    let position = r.Next(n)
     
-    let aSum = Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 (v |> rowi X)
-
-    let bSum = Array.fold (fun acc (e,Y) -> if Y<>X then acc + e else acc) 0.0 (v |> coli i)
+    let aSum = sumAllBut position (v |> rowi city)
+    let bSum = sumAllBut city (v |> coli position)
             
-    let mutable cSum = 0.0
-    let mutable dSum =0.0
-    for x in 0 .. n-1 do
-        for j in 0 .. n-1 do
-            cSum <- cSum + v.[x,j]
-        let index1 = (n + 1+i) % n
-        let index2  = (n+i-1%n) % n
-        let dAdd = distances.[X,x] * (v.[x,index1] + v.[x,index2])
-        dSum <- dSum + dAdd
-    cSum <- cSum - (float(n) + parameters.Rho)
+    let cSum = (v |> Seq.cast<float> |> Seq.sum) - float(n)
 
-        
-    (*
-    moved this to single for loop
-    for Y in 0 .. n-1 do
-        let index1 = (n + 1+i) % n
-        let index2  = (n+i-1%n) % n
-        let dAdd = distances.[X,Y] * (v.[Y,index1] + v.[Y,index2])
-        dSum <- dSum + dAdd
-    *)
+    let dSum = dSumCalc distances v city position n
 
     //momentum of given node
     let dudt = -parameters.A*aSum - parameters.B*bSum - parameters.C*cSum - parameters.D*dSum
-    u.[X,i] <- u.[X,i] + parameters.dTime*(-u.[X,i] + dudt)
-
-    let ui = u.[X,i]
-    let changeValue = tanh(ui/parameters.u0)
-    let oldVXi = v.[X,i]
-    v.[X,i] <- 0.5 * (1.0 + changeValue)
-    netWorkValue + v.[X,i] - oldVXi
+    u.[city,position] <- u.[city,position] + parameters.dTime*(-u.[city,position] + dudt)
+    //u.[X,i] <- dudt
+    let ui = u.[city,position]
+    let changeValue = tanh(ui*parameters.alfa)
+    let oldVXi = v.[city,position]
+    v.[city,position] <- 0.5 * (1.0 + changeValue)
+    netWorkValue + v.[city,position] - oldVXi
 
 //returns the path of the current solution
 let currentPath network =
@@ -167,7 +111,7 @@ let generateRandomCities n =
             y =r.NextDouble()
         })
 
-let notStable (n:int) nValue = if nValue < 0.75*float(n*n) && nValue >= 1.2*float(n) then true else false
+let notStable (n:int) nValue = if nValue < 0.85*float(n*n) && nValue >= 1.05*float(n) then true else false
 
 let initAndRunUntilStable cities pms distances n = 
     let r = new Random()
@@ -186,11 +130,12 @@ let initializeNetworkAndRun (pms:HopfieldTspParams ) (n:int) =
     let distances = calculateDistances cities
     let maxNaValue = float(n*n)
     let paths = seq {
-        for i in 0..20 do
+        for i in 0..100 do
             let network = initAndRunUntilStable cities pms distances n
             let path = currentPath network
             yield path
-    } 
+    }
+    
     
     let minPath = paths |> Seq.filter (fun p-> isFeasable p) |> Seq.minBy (fun p -> calculateDistance p distances)
     cities,minPath
@@ -200,10 +145,10 @@ let paramsFromArray (pms:float[]) =
         A = pms.[0]
         B = pms.[1]
         D = pms.[2]
-        u0 = pms.[3]
+        alfa = pms.[3]
         dTime = pms.[4]
-        Rho = pms.[5]
-        C = pms.[6]
+        Rho = 1.0
+        C = pms.[5]
     }
     parameters
 
@@ -217,7 +162,6 @@ let testParameters (pms:float[]) n =
             let cities = generateRandomCities n
             let distances = calculateDistances cities
             for trials in 1 .. 10 do
-                let r = new Random()
                 let network = initAndRunUntilStable cities parameters distances n
                 let path = currentPath network
                 let distance = calculateDistance path distances
@@ -240,7 +184,7 @@ let testParameters (pms:float[]) n =
     float(count)/220.0, avgRouteSize
     
 let determineParameters n pmsRange =
-    let combinations = (getCombsWithRep 7 pmsRange) |> List.ofSeq
+    let combinations = (getCombsWithRep 6 pmsRange) |> List.ofSeq
     let validParameters = combinations |> List.map (fun pms -> (pms,testParameters (Array.ofList pms) n)) |> List.map (fun (pms,distAndRate) -> pms,fst(distAndRate),snd(distAndRate))
     validParameters |> List.sortBy (fun (pms,convRate, avgRoute) -> convRate) |> List.rev |> Seq.take 20 |> Seq.toList
 

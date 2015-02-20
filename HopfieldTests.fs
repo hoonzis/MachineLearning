@@ -64,9 +64,38 @@ let ``distance calculation``() =
     distance |> should equal 40.0
 
 [<Test>]
-let ``1 iteration``() =
-    let cities = generateRandomCities 5
-    let distances = calculateDistances cities
-    let (network,u) = initialize cities DefaultParams
-    let e = singlePass network distances u DefaultParams
-    network |> Array2D.length1 |> should equal 5
+let ``summ all but i-th item from row``() =
+    let network = array2D [|
+                    [|1.0;2.0;3.0|]
+                    [|4.0;5.0;6.0|]
+                    [|7.0;8.0;9.0|]
+                  |]
+    let result = sumAllBut 1 (network |> rowi 0)
+    result |> should equal 4.0
+
+[<Test>]
+let ``summ all but i-th item from column``() =
+    let network = array2D [|
+                    [|1.0;2.0;3.0|]
+                    [|4.0;5.0;6.0|]
+                    [|7.0;8.0;9.0|]
+                  |]
+    let result = sumAllBut 1 (network |> coli 2)
+    result |> should equal 12.0
+
+[<Test>]
+let ``dSumCalc test``() =
+    let network = array2D [|
+                    [|1.0;2.0;3.0|]
+                    [|4.0;5.0;6.0|]
+                    [|7.0;8.0;9.0|]
+                  |]
+
+    let distances =  array2D [|
+                        [|0.0;10.0;20.0|]
+                        [|10.0;0.0;30.0|]
+                        [|20.0;30.0;0.0|]
+                    |]
+    //calculate the dSum for city 1 at position 2
+    let result = dSumCalc distances network 1 2 3
+    result |> should equal 12.0

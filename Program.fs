@@ -30,12 +30,12 @@ let printToFile filename obj =
 
 [<EntryPoint>]
 let main argv =
-    let pmsValues = [0.00001;0.0001;0.001;0.1;0.01;1.0;5.0;10.0;50.0;100.0]
+    let pmsValues = [1.0;100.0;50.0;0.1;0.01;1.5;10.0;0.001;0.0001;0.00001]
     let validParameters = determineParameters 8 pmsValues
     printToFile "C:\\test\\output.txt" validParameters
     
-    //let pms =  [0.1; 0.1; 0.1; 0.1; 0.1; 1.0; 1.0] |> Array.ofList
-    //let parameters = paramsFromArray pms
-    //let (cities,path) = initializeNetworkAndRun parameters 8
-    //Application.Run(drawTSP cities path)
+    let pms =  [1.0; 100.0; 50.0; 50.0; 0.01; 0.01; 0.01] |> Array.ofList
+    let parameters = paramsFromArray pms
+    let (cities,path) = initializeNetworkAndRun parameters 8
+    Application.Run(drawTSP cities path)
     0

@@ -96,6 +96,7 @@ let ``dSumCalc test``() =
                         [|10.0;0.0;30.0|]
                         [|20.0;30.0;0.0|]
                     |]
+
     //calculate the dSum for city 1 at position 2
     let result = dSumCalc distances network 1 2 3
-    result |> should equal 12.0
+    result |> should equal 480.0

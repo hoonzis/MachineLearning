@@ -45,14 +45,6 @@ let  ``isFeasable not good path returns false``() =
     isFeasable path |> should equal false
 
 [<Test>]
-let  ``test forn``() = 
-    let list = [|0.0;0.0;1.0|]
-    let result = list |> forn 2 (fun i->i=0.0)
-    result |>should equal true
-    let result1 = list |> forn 3 (fun i->i=0.0)
-    result1 |> should equal false
-
-[<Test>]
 let ``distance calculation``() =
     let distances =  array2D [|
                         [|0.0;10.0;20.0|]
@@ -98,5 +90,12 @@ let ``dSumCalc test``() =
                     |]
 
     //calculate the dSum for city 1 at position 2
-    let result = dSumCalc distances network 1 2 3
+    let result = dSumCalc distances 1 2 network
     result |> should equal 480.0
+
+[<Test>]
+let ``v Value test``() =
+    let ui = 1.0/50.0;
+    let pms = paramsFromArray [|10.0;10.0;10.0;10.0|]
+    let result = vValue ui pms
+    result |> should equal ((1.0+tanh(1.0))/2.0)

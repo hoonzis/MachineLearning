@@ -50,7 +50,7 @@ let coli col (network:float[,]) =
 let initialize (cities:City list) parameters =
     let n = cities.Length
     let r = System.Random(System.DateTime.Now.Millisecond)
-    let u = Array2D.init n n (fun i j -> if (i<>j) then  2.0*r.NextDouble()-1.0 else 0.0)
+    let u = Array2D.init n n (fun i j -> r.NextDouble())
     u
 
 let sumAllBut (i:int) (values:(float*int)[]) = 
@@ -123,9 +123,9 @@ let serialIteration u pms distances =
 
 //randomly pick nodes and update input potential matrix and update the value
 let randomIteration u pms distances = 
-    let r = new Random()
+    let r = new Random(DateTime.Now.Millisecond)
     let n = Array2D.length1 u
-    for i in 0 .. 2000 do
+    for i in 0 .. 1000*n do
         let city = r.Next(n)
         let position = r.Next(n)
         u.[city, position] <- singlePass distances u pms city position
@@ -133,7 +133,7 @@ let randomIteration u pms distances =
 
 let initAndRunUntilStable cities pms distances = 
     let mutable u = initialize cities pms
-    for i in 0 .. 100 do
+    for i in 0 .. 10 do
         u <- match pms.Update with
                 | Serial -> serialIteration u pms distances
                 | Random -> randomIteration u pms distances
@@ -152,13 +152,15 @@ let paramsFromArray (pms:float[]) =
         A = pms.[0]
         B = pms.[1]
         D = pms.[2]
-        alfa = 50.0
+        alfa = 500.0
         dTime = 0.00001
         Rho = 1.0
         C = pms.[3]
         Update = Random
     }
     parameters
+
+let third (_, _,c,_) = c;
 
 let testParameters (pms:float[]) n = 
     let parameters = paramsFromArray pms
@@ -178,19 +180,18 @@ let testParameters (pms:float[]) n =
                     incr feasableCount
                     let distance = calculateDistance path distances
                     let currentRate = float(!feasableCount)/float(!trialsCount)
-                    yield (path, distance, feasable, currentRate, !trialsCount)
+                    yield (path, distance, currentRate, !trialsCount)
     }
       
     let feasable = allTrialPaths 
-                    |> Seq.takeWhile (fun (p,dist,feasable, rate, trials) -> rate > 0.25 || trials<15) 
-                    |> Seq.map (fun (p,dist,feasable, rate, trials) -> (p,dist,feasable)) 
-                    |> Seq.filter (fun (p,dist,feasable) -> feasable = true) 
+                    |> Seq.takeWhile (fun (p,dist,rate, trials) -> rate > 0.25 || trials<15) 
                     |> List.ofSeq
+                    |> List.rev
 
-    let count = List.length feasable
-    //return a tuple of conversionRate and avgRouteSize
-    let avgRouteSize = if count > 0 then feasable |> List.averageBy (fun (p,dist,ok) ->dist) else 0.0
-    float(count)/110.0, avgRouteSize
+    let feasableCount = List.length feasable
+    let rate =  if feasableCount > 0 then third(List.head feasable) else 0.0
+    let avgRouteSize = if feasableCount > 0 then feasable |> List.averageBy (fun (p,dist,rate,trials) -> dist) else 0.0
+    rate, avgRouteSize
     
 let determineParameters n pmsRange =
     let combinations = (getCombsWithRep 4 pmsRange) |> List.ofSeq
@@ -201,8 +202,11 @@ let drawTSP (cities:City list) path =
     let feasable = isFeasable path
     let cityPoints = cities |> List.map (fun c -> (c.x,c.y))
     let line = (path |> Array.map (fun (v,i) -> cities.[i])) |> Array.map (fun c -> (c.x,c.y))
+    //just add the first element to the line again to make circle
+    let circle = Array.append line [|line.[0]|]
+
     let chart = Chart.Combine [   
-                    Chart.Line line
+                    Chart.Line circle
                     Chart.Point cityPoints
                 ]
 

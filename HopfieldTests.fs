@@ -95,8 +95,8 @@ let ``dSumCalc test``() =
 
 [<Test>]
 let ``v Value test``() =
-    let ui = 1.0/50.0;
     let pms = paramsFromArray [|10.0;10.0;10.0;10.0|]
+    let ui = 1.0/pms.alfa;
     let result = v ui pms
     result |> should equal ((1.0+tanh(1.0))/2.0)
 

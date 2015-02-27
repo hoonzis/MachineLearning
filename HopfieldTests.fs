@@ -99,3 +99,20 @@ let ``v Value test``() =
     let pms = paramsFromArray [|10.0;10.0;10.0;10.0|]
     let result = v ui pms
     result |> should equal ((1.0+tanh(1.0))/2.0)
+
+[<Test>]
+let ``singple pass test``() =
+    let pms = paramsFromArray [|10.0;10.0;10.0;10.0|]
+    let u = array2D [|
+                    [|0.5;0.5;0.5;|]
+                    [|0.5;0.5;0.5;|]
+                    [|0.5;0.5;0.5;|]
+                  |]
+
+    let distances =  array2D [|
+                        [|0.0;10.0;20.0|]
+                        [|10.0;0.0;30.0|]
+                        [|20.0;30.0;0.0|]
+                    |]
+    let r = singlePass distances u pms 0 1
+    r |> should equal 0.49309500000000001

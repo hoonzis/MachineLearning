@@ -50,7 +50,7 @@ let coli col (network:float[,]) =
 let initialize (cities:City list) parameters =
     let n = cities.Length
     let r = System.Random(System.DateTime.Now.Millisecond)
-    let u = Array2D.init n n (fun i j -> r.NextDouble())
+    let u = Array2D.init n n (fun i j -> if (i<>j) then  2.0*r.NextDouble()-1.0 else 0.0)
     u
 
 let sumAllBut (i:int) (values:(float*int)[]) = 
@@ -125,15 +125,15 @@ let serialIteration u pms distances =
 let randomIteration u pms distances = 
     let r = new Random()
     let n = Array2D.length1 u
-    for i in 0 .. 5*n*n do
-        let city = r.Next(n-1)
-        let position = r.Next(n-1)
+    for i in 0 .. 2000 do
+        let city = r.Next(n)
+        let position = r.Next(n)
         u.[city, position] <- singlePass distances u pms city position
     u
 
 let initAndRunUntilStable cities pms distances = 
     let mutable u = initialize cities pms
-    for i in 0 .. 500 do
+    for i in 0 .. 100 do
         u <- match pms.Update with
                 | Serial -> serialIteration u pms distances
                 | Random -> randomIteration u pms distances

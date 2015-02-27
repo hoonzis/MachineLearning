@@ -30,8 +30,8 @@ let printToFile filename obj =
 
 [<EntryPoint>]
 let main argv =
-    let pmsValues = [200.0;100.0;110.0]
-    let validParameters = determineParameters 8 pmsValues
+    let pmsValues = [500.0;200.0;300.0]
+    let validParameters = determineParameters 4 pmsValues
     printToFile "C:\\test\\output.txt" validParameters
     
     let pms =  [500.0; 500.0; 200.0; 300.0] |> Array.ofList

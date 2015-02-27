@@ -15,6 +15,10 @@ type City = {
     i : int
 }
 
+type IterationType =
+    | Serial
+    | Random
+
 type HopfieldTspParams = {
     A: float
     B: float
@@ -23,6 +27,7 @@ type HopfieldTspParams = {
     dTime: float
     Rho: float
     C: float
+    Update:IterationType
 }
 
 let calculateDistances (cities:City list) = 
@@ -52,7 +57,7 @@ let sumAllBut (i:int) (values:(float*int)[]) =
     Array.fold (fun acc (e,j) -> if i<>j then acc + e else acc) 0.0 values
 
 //calculates the value of node from input potential
-let vValue (ui:float) (parameters:HopfieldTspParams) = (1.0 + tanh(ui*parameters.alfa))/2.0
+let v (ui:float) (parameters:HopfieldTspParams) = (1.0 + tanh(ui*parameters.alfa))/2.0
 
 let dSumCalc distances city position (v:float[,]) = 
     let n = v |> Array2D.length1
@@ -62,24 +67,28 @@ let dSumCalc distances city position (v:float[,]) =
         e*(v.[i,index1] + v.[i,index2])
     )
 
-let toValues (pms:HopfieldTspParams) (u:(float*int)[]) = 
-    u|> Array.map (fun (ui,i) -> vValue ui pms,i)
+let toValues (pms:HopfieldTspParams) u = 
+    u|> Array2D.map (fun (ui) -> v ui pms)
 
+//updates a single node in input potential matrix
 let singlePass (distances:float[,]) (u:float[,]) pms city position = 
     let n = Array2D.length2 u
     
-    let aSum = sumAllBut position (u |> rowi city |> toValues pms)
+    let values = u |> toValues pms
 
-    let bSum = sumAllBut city (u |> coli position |> toValues pms)
+    let aSum = sumAllBut position (values |> rowi city)
+
+    let bSum = sumAllBut city (values |> coli position)
             
-    let cSum = (u |> Seq.cast<float> |> Seq.map (fun ui -> vValue ui pms) |> Seq.sum) - float(n+1)
+    let cSum = (values |> Seq.cast<float> |> Seq.sum) - float(n+1)
 
-    let dSum = dSumCalc distances city position (u|> Array2D.map (fun i-> vValue i pms))
+    let dSum = dSumCalc distances city position values
 
     //momentum of given node
     let dudt = -pms.A*aSum - pms.B*bSum - pms.C*cSum - pms.D*dSum
-    //u.[city,position] <- u.[city,position] + parameters.dTime*(-u.[city,position] + dudt)
-    u.[city,position] <- dudt
+    let r = u.[city,position] + pms.dTime*(-u.[city,position] + dudt)
+    //let r = dudt
+    r
 
 //returns the path of the current solution
 let currentPath network =
@@ -106,19 +115,29 @@ let generateRandomCities n =
             y =r.NextDouble()
         })
 
-let initAndRunUntilStable cities pms distances = 
+
+
+//go over all nodes in the input potential matrix and update the value
+let serialIteration u pms distances = 
+    u |> Array2D.mapi (fun i j x -> singlePass distances u pms i j)
+
+//randomly pick nodes and update input potential matrix and update the value
+let randomIteration u pms distances = 
     let r = new Random()
-    let u = initialize cities pms
-    let mutable continueLooping = true
-    let mutable iterCount = 0
-    while continueLooping do
-        let city = r.Next()
-        let position = r.Next()
-        singlePass distances u pms city position
-        iterCount <- iterCount + 1
-        continueLooping <- iterCount < 100000
-    let network = u |> Array2D.map (fun e -> vValue e pms)
-    network
+    let n = Array2D.length1 u
+    for i in 0 .. 5*n*n do
+        let city = r.Next(n-1)
+        let position = r.Next(n-1)
+        u.[city, position] <- singlePass distances u pms city position
+    u
+
+let initAndRunUntilStable cities pms distances = 
+    let mutable u = initialize cities pms
+    for i in 0 .. 500 do
+        u <- match pms.Update with
+                | Serial -> serialIteration u pms distances
+                | Random -> randomIteration u pms distances
+    u |> toValues pms
 
 let initializeNetworkAndRun (pms:HopfieldTspParams ) (n:int) =
     let cities = generateRandomCities n
@@ -137,6 +156,7 @@ let paramsFromArray (pms:float[]) =
         dTime = 0.00001
         Rho = 1.0
         C = pms.[3]
+        Update = Random
     }
     parameters
 
@@ -152,16 +172,17 @@ let testParameters (pms:float[]) n =
             for trials in 1 .. 5 do
                 let v = initAndRunUntilStable cities parameters distances
                 let path = currentPath v
-                let distance = calculateDistance path distances
                 let feasable = isFeasable path
-                if feasable then incr feasableCount
                 incr trialsCount
-                let currentRate = float(!feasableCount)/float(!trialsCount)
-                yield (path, distance, feasable, currentRate, !trialsCount)
+                if feasable then
+                    incr feasableCount
+                    let distance = calculateDistance path distances
+                    let currentRate = float(!feasableCount)/float(!trialsCount)
+                    yield (path, distance, feasable, currentRate, !trialsCount)
     }
       
     let feasable = allTrialPaths 
-                    |> Seq.takeWhile (fun (p,dist,feasable, rate, trials) -> rate > 0.45 || trials<30) 
+                    |> Seq.takeWhile (fun (p,dist,feasable, rate, trials) -> rate > 0.25 || trials<15) 
                     |> Seq.map (fun (p,dist,feasable, rate, trials) -> (p,dist,feasable)) 
                     |> Seq.filter (fun (p,dist,feasable) -> feasable = true) 
                     |> List.ofSeq

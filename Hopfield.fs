@@ -133,9 +133,13 @@ let randomIteration u pms distances =
 
 let initAndRunUntilStable cities pms distances = 
     let u = initialize cities pms
-    {1 .. 10} |> Seq.fold (fun uNext i -> randomIteration uNext pms distances) u
+    {1 .. 10} |> Seq.fold (fun uNext i -> 
+            match pms.Update with
+                | Random -> randomIteration uNext pms distances
+                | Serial -> serialIteration uNext pms distances
+    ) u
     
-let initializeNetworkAndRun (pms:HopfieldTspParams ) (n:int) =
+let sampleRun (pms:HopfieldTspParams ) (n:int) =
     let cities = generateRandomCities n
     let distances = calculateDistances cities
     let networks = Seq.initInfinite (fun i -> initAndRunUntilStable cities pms distances)

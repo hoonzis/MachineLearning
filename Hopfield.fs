@@ -133,7 +133,7 @@ let randomIteration u pms distances =
 
 let initAndRunUntilStable cities pms distances = 
     let u = initialize cities pms
-    {1 .. 10} |> Seq.fold (fun uNext i -> 
+    {1 .. 20} |> Seq.fold (fun uNext i -> 
             match pms.Update with
                 | Random -> randomIteration uNext pms distances
                 | Serial -> serialIteration uNext pms distances
@@ -182,7 +182,8 @@ let testParameters (pms:float[]) n =
                     let currentRate = float(!feasableCount)/float(!trialsCount)
                     yield (path, distance, currentRate, !trialsCount)
     }
-      
+    
+    //this is like prunning the results. if after 15 trials the succ. rate is still lower than 0.25, probably the config is not worth other exploration
     let feasable = allTrialPaths 
                     |> Seq.takeWhile (fun (p,dist,rate, trials) -> rate > 0.25 || trials<15) 
                     |> List.ofSeq

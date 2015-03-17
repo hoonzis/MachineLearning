@@ -31,7 +31,9 @@ let passDelta (outputs:float[]) (delta:float[]) (weights:float[,]) =
 
 
 let updateWeights (layer:float[]) (delta:float[]) (weights:float[,]) learningRate =
-    weights |> Array2D.mapi (fun i j w -> w + learningRate * delta.[j] * layer.[i])
+    let newWeights  = weights |> Array2D.mapi (fun i j w -> w + learningRate * delta.[j] * layer.[i])
+    newWeights
+
 
 let sigmoid value = 1.0/(1.0 + exp(-value));
 

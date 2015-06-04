@@ -25,7 +25,6 @@ type HopfieldTspParams = {
     D: float
     alfa: float
     dTime: float
-    Rho: float
     C: float
     Update:IterationType
 }
@@ -154,7 +153,6 @@ let paramsFromArray (pms:float[]) =
         D = pms.[2]
         alfa = 500.0
         dTime = 0.00001
-        Rho = 1.0
         C = pms.[3]
         Update = Random
     }

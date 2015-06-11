@@ -39,7 +39,7 @@ let butterfly call1Strike call2Strike ref =
     (euroCallValue call1Strike 5.0 1.0 ref) +
     (euroCallValue call2Strike 5.0 1.0 ref) -
     2.0 * (euroCallValue ((call1Strike + call2Strike) / 2.0) 5.0 1.0 ref)
-    
+
 let riskReversal strike ref =
     (euroCallValue strike 5.0 1.0 ref) +
     (euroPutValue strike 5.0 -1.0 ref)
@@ -50,6 +50,23 @@ let collar strike strike2 ref =
     (cashPayOff strike ref) +
     (euroPutValue strike 5.0 1.0 ref) +
     (euroCallValue strike2 5.0 -1.0 ref)
+
+let condor ref = 
+    (euroCallValue 14.0 -5.0 -1.0 ref) +
+    (euroCallValue 12.0 -5.0 1.0 ref) +
+    (euroCallValue 20.0 5.0 -1.0 ref) +
+    (euroCallValue 22.0 5.0 1.0 ref)
+    //selling 1 in the money call
+    //buy 1 in the money call (lower strike)
+    //sell 1 out of money call
+    //buy 1 out of money call (higher strike)
+
+let boxOption strike1 strike2 ref = 
+    (euroCallValue strike1 5.0 1.0 ref) +
+    (euroCallValue strike2 5.0 -1.0 ref) +
+    (euroCallValue strike2 5.0 1.0 ref) +
+    (euroCallValue strike1 5.0 -1.0 ref)
+
     
 let getStrangleData callStrike putStrike = 
     [for p in 0.3*putStrike .. 2.0*callStrike -> p, (longStrangle callStrike putStrike 5.0 5.0 p)]
@@ -66,10 +83,15 @@ let getRiskReversalData strike =
 let getCollarData strike strike2 = 
     [for p in floor(0.3*strike) .. floor(2.0*strike2) -> p, (collar strike strike2 p)]
 
+let getCondorData currentRef =
+    [for p in floor(0.3*currentRef) .. floor(2.0*currentRef) -> p, (condor p)]
 
+let getBoxData strike strike2 = 
+    [for p in floor(0.3*strike) .. floor(2.0*strike2) -> p, (boxOption strike strike2 p)]
+    
 
-let call1 = getOptionData euroCallValue 20.0 5.0 1.0
-let call2 = getOptionData euroCallValue 22.0 5.0 1.0
+//let call1 = getOptionData euroCallValue 20.0 5.0 1.0
+//let call2 = getOptionData euroCallValue 22.0 5.0 1.0
 let shortCalls ref = -2.0 * (euroCallValue ((18.0 + 22.0) / 2.0) 5.0 1.0 ref)
 let shortCallsData = 
     [for p in 0.5*20.0 .. 2.0*20.0 -> p, (shortCalls p)]
@@ -84,6 +106,18 @@ let buyingButterfly = getButterflyData 22.0 18.0
 let buyingRiskReversal = getRiskReversalData 20.0
 let buyingCollar = getCollarData 20.0 25.0
 
+//condor stuff
+let call1 = getOptionData euroCallValue 14.0 -3.0 -1.0
+let call2 = getOptionData euroCallValue 12.0 -3.0 1.0
+let call3 = getOptionData euroCallValue 20.0 5.0 -1.0
+let call4 = getOptionData euroCallValue 22.0 5.0 1.0
+
+//bog stuff
+let boxLongCall = getOptionData euroCallValue 10.0 3.0 1.0
+let boxShortCall = getOptionData euroCallValue 15.0 3.0 -1.0
+let boxLongPut = getOptionData euroCallValue 15.0 3.0 1.0
+let boxShortPut = getOptionData euroCallValue 10.0 3.0 -1.0
+
 
 let drawAllPayOffs = 
     printfn "%A" sellingCall
@@ -93,15 +127,13 @@ let drawAllPayOffs =
 
     let xMinor = ChartTypes.TickMark(Interval = 1.0,Size = TickMarkStyle.InsideArea,Enabled = true)
 
+
     let chart = Chart.Combine [         
-                    //Chart.Line (buyingCall, Name = "buying call") |>Chart.WithSeries.Style(Color = Color.Green, BorderWidth = 5)
-                    //Chart.Line ([20.0,-30.0;20.0,30.0],Name = "strike 1")
-                    Chart.Line ([20.0,-30.0;20.0,30.0],Name = "strike")
-                    Chart.Line (riskReversalBuyingCall, Name = "long call") |>Chart.WithSeries.Style(Color = Color.Blue)
-                    Chart.Line (riskReversalSellingPut, Name = "short put") |>Chart.WithSeries.Style(Color = Color.Red)
-                    //Chart.Line (shortCallsData, Name = "2 short calls") |>Chart.WithSeries.Style(Color = Color.Green)
-                    //Chart.Line(sellingPut, Name = "selling put") |>Chart.WithSeries.Style(Color = Color.Brown, BorderWidth = 5)
-                    Chart.Line(buyingCollar, Name = "Collar") |> Chart.WithSeries.Style(Color = Color.Black, BorderWidth = 5)
+                    Chart.Line (boxLongCall, Name = "Long call strike 10") |>Chart.WithSeries.Style(Color = Color.DarkOrange)
+                    Chart.Line (boxShortCall, Name = "Short call strike 15") |>Chart.WithSeries.Style(Color = Color.Blue)
+                    Chart.Line (boxLongPut, Name = "Long put strike 15") |>Chart.WithSeries.Style(Color = Color.Red)
+                    Chart.Line (boxShortPut, Name = "Short put strike 10") |>Chart.WithSeries.Style(Color = Color.Green)
+                    Chart.Line((getBoxData 10.0 15.0), Name = "Box Option") |> Chart.WithSeries.Style(Color = Color.Black, BorderWidth = 5)
                 ]
 
 

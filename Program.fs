@@ -2,34 +2,30 @@
 
 open MachineLearning.Hopfield
 open MachineLearning.NeuralNetworks
+open MachineLearning.FilePrinter
 open System
 open System.Windows.Forms
 open System.IO
 open MachineLearning.Options
+open FSharp.Charting
+open MathNet.Numerics.Distributions
+open FSharp.Charting.ChartTypes
+open System.Windows.Forms
+open System.Windows.Forms.DataVisualization.Charting
+open System.Drawing
 
+let showChart chart = 
+    let area = new ChartArea("Main")
 
-let printToFile filename obj =
-    let myDocsPath = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments) 
-    let fullPath = Path.Combine(myDocsPath, filename)
+    let control = new ChartControl(chart)
+    control.Width <- 700
+    control.Height  <- 500
 
-    let sb = new System.Text.StringBuilder()
-    let myPrint format = Printf.bprintf sb format 
-    
-    use rw = new StreamReader(path=fullPath)
-    let old = rw.ReadToEnd()
-    rw.Close()
-    do myPrint "%s" old
-    do myPrint "%A" obj
-
-    use sw = new StreamWriter(path=fullPath)
-    // use partial application to fix the TextWriter
-    let myPrintF format = fprintf sw format
-    
-    let toWrite = sb.ToString()
-    do myPrintF "%s" toWrite
-
-    //get the result
-    sw.Close()
+    // Show the chart control on a top-most form
+    let mainForm = new Form(Visible = true, TopMost = true, 
+                            Width = 700, Height = 500)
+    mainForm.Controls.Add(control)
+    Application.Run mainForm
 
 let runParametersTest pms =
     let pmsValues = match pms with 
@@ -46,19 +42,27 @@ let runAndDrawTSP pms =
 
     let parameters = paramsFromArray pmsValues
     let (cities,path) = sampleRun parameters 6
-    Application.Run(drawTSP cities path)
+    showChart(getTSPChart cities path)
 
-//learns XOR, do about 2000 iteratiosn with rate 0.5
-let runAndVerifyXOR iterations rate = 
-    let inNetwork = createRandomNetwork 2 2 1
-    let outNetwork = runTraining inNetwork iterations rate
-    let out1 = (completepass [|0.0;0.0|] outNetwork).output.[0]
-    let out2 = (completepass [|1.0;0.0|] outNetwork).output.[0]
-    let out3 = (completepass [|0.0;1.0|] outNetwork).output.[0]
-    let out4 = (completepass [|1.0;1.0|] outNetwork).output.[0]
-    ()
+let testPriceSampling = 
+    let dist1 = Normal(0.0, 1.0, RandomSource = Random(100))
+    let dist2 = Normal(0.0, 1.0, RandomSource = Random(100))
+
+    // Vary the parameters between 0.01 to 0.10
+    let drift1, vol1 = 0.05, 0.10
+    let drift2, vol2 = 0.20, 0.10 
+
+    let randomPrice1 = Generator.randomPrice drift1 vol1 0.005 5.0 dist1
+    let randomPrice2 = Generator.randomPrice drift2 vol2 0.005 5.0 dist2
+     
+    // Compare randomly generated prices 
+    Chart.Combine
+        [ 
+            MachineLearning.Chart.SimpleLine randomPrice1 500
+            MachineLearning.Chart.SimpleLine randomPrice2 500
+        ]
 
 [<EntryPoint>]
 let main argv =
-    Application.Run(drawAllPayOffs)
+    showChart(testPriceSampling)
     0

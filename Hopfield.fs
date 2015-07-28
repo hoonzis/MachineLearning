@@ -3,11 +3,8 @@
 open System
 open MachineLearning.NeuralNetwork
 open MachineLearning.Combinatorics
-open System.Drawing
 open FSharp.Charting
 open FSharp.Charting.ChartTypes
-open System.Windows.Forms
-open System.Windows.Forms.DataVisualization.Charting
 
 type City = {
     x : float
@@ -197,26 +194,15 @@ let determineParameters n pmsRange =
     let validParameters = combinations |> List.map (fun pms -> (pms,testParameters (Array.ofList pms) n)) |> List.map (fun (pms,distAndRate) -> pms,fst(distAndRate),snd(distAndRate))
     validParameters |> List.sortBy (fun (pms,convRate, avgRoute) -> convRate) |> List.rev |> Seq.toList
 
-let drawTSP (cities:City list) path =
+//generates a chart representing cities from a city list
+let getTSPChart (cities:City list) path =
     let feasable = isFeasable path
     let cityPoints = cities |> List.map (fun c -> (c.x,c.y))
     let line = (path |> Array.map (fun (v,i) -> cities.[i])) |> Array.map (fun c -> (c.x,c.y))
     //just add the first element to the line again to make circle
     let circle = Array.append line [|line.[0]|]
 
-    let chart = Chart.Combine [   
-                    Chart.Line circle
-                    Chart.Point cityPoints
-                ]
-
-    let area = new ChartArea("Main")
-
-    let control = new ChartControl(chart)
-    control.Width <- 700
-    control.Height  <- 500
-
-    // Show the chart control on a top-most form
-    let mainForm = new Form(Visible = true, TopMost = true, 
-                            Width = 700, Height = 500)
-    mainForm.Controls.Add(control)
-    mainForm
+    Chart.Combine [   
+        Chart.Line circle
+        Chart.Point cityPoints
+    ]

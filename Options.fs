@@ -7,6 +7,24 @@ open FSharp.Charting.ChartTypes
 open System.Windows.Forms
 open System.Windows.Forms.DataVisualization.Charting
 
+type OptionType = 
+    | Call
+    | Put
+
+type OptionInfo = 
+    {
+        ExercisePrice : float
+        TimeToExpiry : float
+        Kind : OptionType
+    }
+
+type StockInfo =
+    {
+        Volatility: float
+        CurrentPrice: float
+    }
+
+
 
 let euroCallValue strike premium buySell ref = 
     buySell * ((max (ref - strike) 0.0) - premium)
@@ -85,7 +103,7 @@ let buyingRiskReversal = getRiskReversalData 20.0
 let buyingCollar = getCollarData 20.0 25.0
 
 
-let drawAllPayOffs = 
+let getPayoffsChart = 
     printfn "%A" sellingCall
 
     let yMark = ChartTypes.TickMark(Interval = 5.0,Size = TickMarkStyle.InsideArea, Enabled = true)
@@ -105,16 +123,4 @@ let drawAllPayOffs =
                 ]
 
 
-    let withLegend = chart |> Chart.WithLegend(true) |> Chart.WithYAxis(Min = -15.0, Max = 22.0, MajorTickMark = yMark, MinorTickMark = yMinor) |> Chart.WithXAxis(Min = 10.0, Max=35.0,MinorTickMark = xMinor)
-
-    let area = new ChartArea("Main")
-
-    let control = new ChartControl(withLegend)
-    control.Width <- 700
-    control.Height  <- 500
-
-    // Show the chart control on a top-most form
-    let mainForm = new Form(Visible = true, TopMost = true, 
-                            Width = 700, Height = 500)
-    mainForm.Controls.Add(control)
-    mainForm
+    chart |> Chart.WithLegend(true) |> Chart.WithYAxis(Min = -15.0, Max = 22.0, MajorTickMark = yMark, MinorTickMark = yMinor) |> Chart.WithXAxis(Min = 10.0, Max=35.0,MinorTickMark = xMinor)

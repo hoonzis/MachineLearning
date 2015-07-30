@@ -3,6 +3,7 @@
 open MachineLearning.Hopfield
 open MachineLearning.NeuralNetworks
 open MachineLearning.FilePrinter
+open MachineLearning.StockData
 open System
 open System.Windows.Forms
 open System.IO
@@ -44,6 +45,14 @@ let runAndDrawTSP pms =
     let (cities,path) = sampleRun parameters 6
     showChart(getTSPChart cities path)
 
+
+let testYahooFinanceStockData = 
+    let startDate = new DateTime(2014,1,1)
+    let endDate = new DateTime(2015,1,1)
+    let msData = stockData "MSFT" startDate endDate
+    Chart.Line msData
+    
+
 let testPriceSampling = 
     let dist1 = Normal(0.0, 1.0, RandomSource = Random(100))
     let dist2 = Normal(0.0, 1.0, RandomSource = Random(100))
@@ -64,5 +73,5 @@ let testPriceSampling =
 
 [<EntryPoint>]
 let main argv =
-    showChart(testPriceSampling)
+    showChart(testYahooFinanceStockData)
     0

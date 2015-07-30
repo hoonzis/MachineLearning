@@ -13,3 +13,15 @@ let linRegressio (x:float array) (y:float array) =
     let b = (sumY- a* sumX) / length
     (a,b)
 
+let standardDeviation prices =
+    let count = Seq.length prices
+    let avg = Seq.average prices
+    let squares = prices |> Seq.map (fun p -> (p-avg)*(p-avg))
+    sqrt ((Seq.sum squares)/float count)
+
+let standardDeviationUnits (prices:seq<float<USD>>) = 
+    let count = Seq.length prices
+    let avg = Seq.average prices
+    let squares = [ for p in prices -> (p - avg) * (p - avg) ]
+    sqrt ((Seq.sum squares) / (float count))
+

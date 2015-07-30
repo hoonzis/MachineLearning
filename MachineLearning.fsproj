@@ -88,6 +88,7 @@
     <Compile Include="OptionsTests.fs" />
     <Compile Include="Combinatorics.fs" />
     <Compile Include="Hopfield.fs" />
+    <Compile Include="Currencies.fs" />
     <Compile Include="HopfieldTests.fs" />
     <Compile Include="Stats.fs" />
     <Compile Include="StockData.fs" />

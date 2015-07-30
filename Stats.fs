@@ -1,5 +1,7 @@
 ﻿module MachineLearning.Stats
 
+open MachineLearning.Currencies
+
 let linRegressio (x:float array) (y:float array) =
     let length = (float) (Array.length x)
     let sumX = x |> Array.sum

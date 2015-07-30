@@ -1,7 +1,10 @@
 ﻿module MachineLearning.StockData
 
 open System
+open System.Collections.Generic
 open FSharp.Data
+open MathNet.Numerics.Statistics
+open MathNet.Numerics.Distributions
 
 type Stocks = CsvProvider<"testdata.csv">
 
@@ -26,3 +29,41 @@ let logRatios ticker startDate endDate =
     data |> Seq.sortBy (fun a -> a.Date)
          |> Seq.pairwise
          |> Seq.map (fun (prev,next) -> log (float next.Close / float prev.Close))
+
+//this holds
+//mean = (drift - 0.5 * volatility2) * tau
+//variance = volatility2 * tau
+let getVolatilityAndDrift (logRatios:IEnumerable<float>) = 
+    let stats = DescriptiveStatistics(logRatios,false)
+    let tau = 1.0 / 252.0
+
+    let volatility = sqrt (stats.Variance / tau)
+    let drift = (stats.Mean / tau) + (pown volatility 2) / 2.0
+    (volatility,drift)
+
+let dist1 = Normal(0.0, 1.0, RandomSource = Random(100))
+let dist2 = Normal(0.0, 2.0, RandomSource = Random(100))
+
+let rec randomWalk value (dist:IContinuousDistribution) = seq {
+    yield value
+    yield! randomWalk (value + dist.Sample()) dist
+}
+
+let randomPrice drift volatility dt initial (dist:Normal) = 
+    // Calculate parameters of the exponential
+    let driftExp = (drift - 0.5 * pown volatility 2) * dt
+    let randExp = volatility * (sqrt dt)
+
+    // Recursive loop that actually generates the price
+    let rec loop price = seq {
+        yield price
+        let price = price * exp (driftExp + randExp * dist.Sample()) 
+        yield! loop price }
+
+    // Return path starting at 'initial'
+    loop initial
+
+let simulatePrice ticker startDate endDate =
+    let historicalData = logRatios ticker startDate endDate
+    let (vol, drift) = historicalData |> getVolatilityAndDrift
+    

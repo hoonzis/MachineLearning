@@ -95,7 +95,6 @@
     <Compile Include="OptionsPricing.fs" />
     <Compile Include="Chart.fs" />
     <Compile Include="FilePrinter.fs" />
-    <Compile Include="Generator.fs" />
     <Compile Include="Program.fs" />
     <None Include="testdata.csv">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

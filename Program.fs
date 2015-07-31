@@ -45,33 +45,7 @@ let runAndDrawTSP pms =
     let (cities,path) = sampleRun parameters 6
     showChart(getTSPChart cities path)
 
-
-let testYahooFinanceStockData = 
-    let startDate = new DateTime(2014,1,1)
-    let endDate = new DateTime(2015,1,1)
-    let msData = stockData "MSFT" startDate endDate
-    Chart.Line msData
-    
-
-let testPriceSampling = 
-    let dist1 = Normal(0.0, 1.0, RandomSource = Random(100))
-    let dist2 = Normal(0.0, 1.0, RandomSource = Random(100))
-
-    // Vary the parameters between 0.01 to 0.10
-    let drift1, vol1 = 0.05, 0.10
-    let drift2, vol2 = 0.20, 0.10 
-
-    let randomPrice1 = Generator.randomPrice drift1 vol1 0.005 5.0 dist1
-    let randomPrice2 = Generator.randomPrice drift2 vol2 0.005 5.0 dist2
-     
-    // Compare randomly generated prices 
-    Chart.Combine
-        [ 
-            MachineLearning.Chart.SimpleLine randomPrice1 500
-            MachineLearning.Chart.SimpleLine randomPrice2 500
-        ]
-
 [<EntryPoint>]
 let main argv =
-    showChart(testYahooFinanceStockData)
+    showChart(getPayoffsChart)
     0

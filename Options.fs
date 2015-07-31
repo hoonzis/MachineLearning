@@ -6,6 +6,8 @@ open FSharp.Charting
 open FSharp.Charting.ChartTypes
 open System.Windows.Forms
 open System.Windows.Forms.DataVisualization.Charting
+open MathNet.Numerics.Distributions
+open MachineLearning.StockData
 
 type OptionType = 
     | Call
@@ -13,24 +15,53 @@ type OptionType =
 
 type OptionInfo = 
     {
-        ExercisePrice : float
-        TimeToExpiry : float
+        Strike : float
+        Expiry : DateTime
         Kind : OptionType
     }
+    member this.TimeToExpiry = (float (this.Expiry - DateTime.Now).Days)/365.0
 
-type StockInfo =
-    {
-        Volatility: float
-        CurrentPrice: float
+type Strategy = {
+        Stock : StockInfo
+        Name : String
+        Legs: seq<OptionInfo>
     }
 
+// Used to get the cumulative distribution function
+let normal = Normal()
 
+/// Calculates the price of 'option' for a given 'stock' and 
+/// a global interest 'rate' using the Black-Scholes equation
+let blackScholes rate (stock:StockInfo) (option:OptionInfo) =
+    // We can only calculate if the option concerns the future
+    if option.TimeToExpiry > 0.0 then
+        // Calculate d1 and d2 and pass them to cumulative distribution
+        let d1 = 
+            ( log(stock.CurrentPrice / option.Strike) + 
+                (rate + 0.5 * pown stock.Volatility 2) * option.TimeToExpiry ) /
+            ( stock.Volatility * sqrt option.TimeToExpiry )
+        let d2 = d1 - stock.Volatility * sqrt option.TimeToExpiry
+        let N1 = normal.CumulativeDistribution(d1)
+        let N2 = normal.CumulativeDistribution(d2)
 
-let euroCallValue strike premium buySell ref = 
-    buySell * ((max (ref - strike) 0.0) - premium)
+        // Calculate the call option (and derived put option) price
+        let e = option.Strike * exp (-rate * option.TimeToExpiry)
+        let call = stock.CurrentPrice * N1 - e * N2
+        match option.Kind with
+        | Call -> call
+        | Put -> call + e - stock.CurrentPrice
+    else
+        // If the option has expired, calculate payoff directly
+        match option.Kind with
+            | Call -> max (stock.CurrentPrice - option.Strike) 0.0
+            | Put -> max (option.Strike - stock.CurrentPrice) 0.0
 
-let euroPutValue strike premium buySell ref =
-    buySell * ((max (strike - ref) 0.0) - premium)
+let optionValue option stock rate = 
+    let premium = blackScholes rate stock option
+    match option.Kind with
+            | OptionType.Call -> (max (stock.CurrentPrice - option.Strike) 0.0) - premium
+            | OptionType.Put -> (max (stock.CurrentPrice - option.Strike) 0.0) - premium
+
 
 let optionPayOff option = 
     [for p in 0.0 .. 10.0 .. 80.0 -> p, option p]
@@ -39,51 +70,70 @@ let getOptionData option strike premium buySell =
     [for p in 0.5*strike .. 2.0*strike -> p, (option strike premium buySell p)]
 
 
-let buyingCall = getOptionData euroCallValue 30.0 5.0 1.0
+let euroCallValue strike ref = 
+    let stock = {
+        CurrentPrice = ref
+        Volatility = 10.0
+    }
 
-let sellingCall = getOptionData euroCallValue 30.0 5.0 -1.0
-    
-let buyingPut = getOptionData euroPutValue 30.0 5.0 1.0
+    let option = {
+        Kind = OptionType.Call
+        Strike = strike
+        Expiry = DateTime.Now.AddMonths(6)
+    }
+    let value = optionValue option stock ref
+    value
 
-let sellingPut = getOptionData euroPutValue 30.0 5.0 -1.0
+let euroPutValue strike ref = 
+    let stock = {
+        CurrentPrice = ref
+        Volatility = 10.0
+    }
+
+    let option = {
+        Kind = OptionType.Call
+        Strike = strike
+        Expiry = DateTime.Now.AddMonths(6)
+    }
+    optionValue option stock ref    
 
 let longStrangle callStrike putStrike callPremium putPremium ref = 
-    (euroCallValue callStrike callPremium 1.0 ref) +
-    (euroPutValue putStrike putPremium 1.0 ref)
+    (euroCallValue callStrike ref) +
+    (euroPutValue putStrike ref)
 
 let longStraddle strike callPremium putPremium ref = longStrangle strike strike callPremium putPremium ref
 
 let butterfly call1Strike call2Strike ref = 
-    (euroCallValue call1Strike 5.0 1.0 ref) +
-    (euroCallValue call2Strike 5.0 1.0 ref) -
-    2.0 * (euroCallValue ((call1Strike + call2Strike) / 2.0) 5.0 1.0 ref)
+    (euroCallValue call1Strike ref) +
+    (euroCallValue call2Strike ref) -
+    2.0 * (euroCallValue ((call1Strike + call2Strike) / 2.0) ref)
 
 let riskReversal strike ref =
-    (euroCallValue strike 5.0 1.0 ref) +
-    (euroPutValue strike 5.0 -1.0 ref)
+    (euroCallValue strike ref) -
+    (euroPutValue strike ref)
 
 let cashPayOff strike ref = ref - strike
     
 let collar strike strike2 ref =
     (cashPayOff strike ref) +
-    (euroPutValue strike 5.0 1.0 ref) +
-    (euroCallValue strike2 5.0 -1.0 ref)
+    (euroPutValue strike ref) -
+    (euroCallValue strike2 ref)
 
 let condor ref = 
-    (euroCallValue 14.0 -5.0 -1.0 ref) +
-    (euroCallValue 12.0 -5.0 1.0 ref) +
-    (euroCallValue 20.0 5.0 -1.0 ref) +
-    (euroCallValue 22.0 5.0 1.0 ref)
+    - (euroCallValue 14.0 ref) +
+    - (euroCallValue 12.0 ref) +
+    - (euroCallValue 20.0 ref) +
+    (euroCallValue 22.0 ref)
     //selling 1 in the money call
     //buy 1 in the money call (lower strike)
     //sell 1 out of money call
     //buy 1 out of money call (higher strike)
 
 let boxOption strike1 strike2 ref = 
-    (euroCallValue strike1 5.0 1.0 ref) +
-    (euroCallValue strike2 5.0 -1.0 ref) +
-    (euroCallValue strike2 5.0 1.0 ref) +
-    (euroCallValue strike1 5.0 -1.0 ref)
+    (euroCallValue strike1 ref) +
+    - (euroCallValue strike2 ref) +
+    (euroCallValue strike2 ref) +
+    - (euroCallValue strike1 ref)
 
     
 let getStrangleData callStrike putStrike = 
@@ -107,16 +157,9 @@ let getCondorData currentRef =
 let getBoxData strike strike2 = 
     [for p in floor(0.3*strike) .. floor(2.0*strike2) -> p, (boxOption strike strike2 p)]
     
-
-//let call1 = getOptionData euroCallValue 20.0 5.0 1.0
-//let call2 = getOptionData euroCallValue 22.0 5.0 1.0
-let shortCalls ref = -2.0 * (euroCallValue ((18.0 + 22.0) / 2.0) 5.0 1.0 ref)
+let shortCalls ref = -2.0 * (euroCallValue ((18.0 + 22.0) / 2.0) ref)
 let shortCallsData = 
     [for p in 0.5*20.0 .. 2.0*20.0 -> p, (shortCalls p)]
-
-let riskReversalBuyingCall = getOptionData euroCallValue 20.0 5.0 1.0
-let riskReversalSellingPut = getOptionData euroPutValue 20.0 5.0 -1.0
-
 
 let buyingStrangle = getStrangleData 22.0 20.0
 let buyingStraddle = getStraddleData 20.0
@@ -124,34 +167,15 @@ let buyingButterfly = getButterflyData 22.0 18.0
 let buyingRiskReversal = getRiskReversalData 20.0
 let buyingCollar = getCollarData 20.0 25.0
 
-//condor stuff
-let call1 = getOptionData euroCallValue 14.0 -3.0 -1.0
-let call2 = getOptionData euroCallValue 12.0 -3.0 1.0
-let call3 = getOptionData euroCallValue 20.0 5.0 -1.0
-let call4 = getOptionData euroCallValue 22.0 5.0 1.0
-
-//bog stuff
-let boxLongCall = getOptionData euroCallValue 10.0 3.0 1.0
-let boxShortCall = getOptionData euroCallValue 15.0 3.0 -1.0
-let boxLongPut = getOptionData euroCallValue 15.0 3.0 1.0
-let boxShortPut = getOptionData euroCallValue 10.0 3.0 -1.0
-
-
 let getPayoffsChart = 
-    printfn "%A" sellingCall
 
     let yMark = ChartTypes.TickMark(Interval = 5.0,Size = TickMarkStyle.InsideArea, Enabled = true)
     let yMinor = ChartTypes.TickMark(Interval = 1.0,Size = TickMarkStyle.InsideArea,Enabled = true)
-
     let xMinor = ChartTypes.TickMark(Interval = 1.0,Size = TickMarkStyle.InsideArea,Enabled = true)
 
 
     let chart = Chart.Combine [         
-                    Chart.Line (boxLongCall, Name = "Long call strike 10") |>Chart.WithSeries.Style(Color = Color.DarkOrange)
-                    Chart.Line (boxShortCall, Name = "Short call strike 15") |>Chart.WithSeries.Style(Color = Color.Blue)
-                    Chart.Line (boxLongPut, Name = "Long put strike 15") |>Chart.WithSeries.Style(Color = Color.Red)
-                    Chart.Line (boxShortPut, Name = "Short put strike 10") |>Chart.WithSeries.Style(Color = Color.Green)
-                    Chart.Line((getBoxData 10.0 15.0), Name = "Box Option") |> Chart.WithSeries.Style(Color = Color.Black, BorderWidth = 5)
+                    Chart.Line((getCondorData 40.0), Name = "Condor") |> Chart.WithSeries.Style(Color = Color.Black, BorderWidth = 5)
                 ]
 
 

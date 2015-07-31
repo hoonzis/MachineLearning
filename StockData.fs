@@ -8,6 +8,12 @@ open MathNet.Numerics.Distributions
 
 type Stocks = CsvProvider<"testdata.csv">
 
+type StockInfo =
+    {
+        Volatility: float
+        CurrentPrice: float
+    }
+
 /// Helper function that returns URL for required stock data
 let urlFor ticker (startDate:System.DateTime) (endDate:System.DateTime) = 
     let root = "http://ichart.finance.yahoo.com"
@@ -24,8 +30,7 @@ let stockDataSimplified ticker startDate endDate =
     let csvData = Stocks.Load(urlFor ticker startDate endDate)
     csvData.Rows |> Seq.map (fun item -> item.Date,item.Close)
 
-let logRatios ticker startDate endDate =
-    let data =  stockData ticker startDate endDate
+let logRatios (data:seq<Stocks.Row>) =
     data |> Seq.sortBy (fun a -> a.Date)
          |> Seq.pairwise
          |> Seq.map (fun (prev,next) -> log (float next.Close / float prev.Close))
@@ -33,16 +38,13 @@ let logRatios ticker startDate endDate =
 //this holds
 //mean = (drift - 0.5 * volatility2) * tau
 //variance = volatility2 * tau
-let getVolatilityAndDrift (logRatios:IEnumerable<float>) = 
+let volAndDrift (logRatios:IEnumerable<float>) = 
     let stats = DescriptiveStatistics(logRatios,false)
     let tau = 1.0 / 252.0
 
     let volatility = sqrt (stats.Variance / tau)
     let drift = (stats.Mean / tau) + (pown volatility 2) / 2.0
     (volatility,drift)
-
-let dist1 = Normal(0.0, 1.0, RandomSource = Random(100))
-let dist2 = Normal(0.0, 2.0, RandomSource = Random(100))
 
 let rec randomWalk value (dist:IContinuousDistribution) = seq {
     yield value
@@ -64,6 +66,19 @@ let randomPrice drift volatility dt initial (dist:Normal) =
     loop initial
 
 let simulatePrice ticker startDate endDate =
-    let historicalData = logRatios ticker startDate endDate
-    let (vol, drift) = historicalData |> getVolatilityAndDrift
+    let data = stockData ticker startDate endDate
+    let (vol, drift) = data |> logRatios |> volAndDrift
+    let dist = Normal(0.0, 1.0)
+    let dates = data |> Seq.map (fun s->s.Date.DayOfYear) |> List.ofSeq |> List.rev
+    let firstClose = float (data |> Seq.minBy (fun s->s.Date)).Close
+    let randoms = randomPrice drift vol 0.005 firstClose dist
+    Seq.zip dates randoms
+
+let stockInfo ticker startDate endDate = 
+    let data = stockData ticker startDate endDate
+    let (vol, drift) = data |> logRatios |> volAndDrift
+    {
+        Volatility = vol
+        CurrentPrice = float (data |> Seq.sortBy (fun s -> s.Date) |> Seq.head).Close
+    }
     

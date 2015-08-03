@@ -81,6 +81,7 @@
     <Compile Include="Stats.fs" />
     <Compile Include="StockData.fs" />
     <Compile Include="Options.fs" />
+    <Compile Include="StrategiesExamples.fs" />
     <Compile Include="Chart.fs" />
     <Compile Include="FilePrinter.fs" />
     <Compile Include="Program.fs" />

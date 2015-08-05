@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MachineLearning", "MachineLearning.fsproj", "{530DB6F3-FA14-49A1-AACE-E0A7C07E836F}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MachineLearning", "MachineLearning\MachineLearning.fsproj", "{530DB6F3-FA14-49A1-AACE-E0A7C07E836F}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MachineLearning.Tests", "..\MachineLearning.Tests\MachineLearning.Tests.fsproj", "{4CB0328E-0155-4704-BF20-4D1FF70BA5F5}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "MachineLearning.Tests", "MachineLearning.Tests\MachineLearning.Tests.fsproj", "{4CB0328E-0155-4704-BF20-4D1FF70BA5F5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

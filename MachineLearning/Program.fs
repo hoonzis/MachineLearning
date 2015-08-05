@@ -3,12 +3,9 @@
 open MachineLearning.Hopfield
 open MachineLearning.NeuralNetworks
 open MachineLearning.FilePrinter
-open MachineLearning.StockData
 open System
 open System.Windows.Forms
 open System.IO
-open MachineLearning.Options
-open MachineLearning.StrategiesExamples
 open FSharp.Charting
 open MathNet.Numerics.Distributions
 open FSharp.Charting.ChartTypes
@@ -48,10 +45,5 @@ let runAndDrawTSP pms =
 
 [<EntryPoint>]
 let main argv =
-    let stock = {
-        Volatility = 0.5
-        CurrentPrice = 100.0
-    }
-    let straddleExample = straddle 110.0 stock
-    showChart(getPayoffsChart straddleExample)
+
     0

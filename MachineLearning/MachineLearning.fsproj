@@ -79,15 +79,8 @@
     <Compile Include="Hopfield.fs" />
     <Compile Include="Currencies.fs" />
     <Compile Include="Stats.fs" />
-    <Compile Include="StockData.fs" />
-    <Compile Include="Options.fs" />
-    <Compile Include="StrategiesExamples.fs" />
-    <Compile Include="Chart.fs" />
     <Compile Include="FilePrinter.fs" />
     <Compile Include="Program.fs" />
-    <None Include="testdata.csv">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
   </ItemGroup>
   <PropertyGroup>
     <MinimumVisualStudioVersion Condition="'$(MinimumVisualStudioVersion)' == ''">11</MinimumVisualStudioVersion>
